@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SqlServerOps.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.bi_sync.ops</a> &gt; <span class="el_source">SqlServerOps.java</span></div><h1>SqlServerOps.java</h1><pre class="source lang-java linenums">package com.t24extractor.bi_sync.ops;
+
+import com.t24extractor.model.SchemaSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+
+import java.sql.Types;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.t24extractor.commons.Constants.*;
+
+/**
+ * Génération SQL pour la base BI (SQL Server), seule base écrite.
+ *
+ * &lt;p&gt;Les identifiants sont délimités par des crochets, le nommage T24 étant
+ * incompatible avec les règles d'identifiant non échappé.
+ *
+ * &lt;p&gt;Toute table cible reçoit trois colonnes techniques : {@code _id} (le RECID
+ * T24), {@code ORIGINAL_ID} (pour regrouper les versions d'un enregistrement
+ * historisé) et {@code INSERT_DATE}, horodatage indexé qui permet aux
+ * consommateurs BI de ne relire que le dernier chargement.
+ *
+ * &lt;p&gt;Les comptages s'appuient sur {@code sys.dm_db_partition_stats} plutôt que
+ * sur un {@code COUNT(*)}, prohibitif sur les tables volumineuses. En cas
+ * d'échec ils renvoient {@code 0} sans lever — contrairement à
+ * {@link OracleOps}, où le comptage conditionne le partitionnement.
+ */
+<span class="fc" id="L36">@Slf4j</span>
+<span class="fc" id="L37">public class SqlServerOps extends SqlOps {</span>
+
+    @Override
+    public void createDestTable(JdbcTemplate jdbcTemplate, String table, Set&lt;SchemaSource&gt; set) {
+
+<span class="fc" id="L42">        String fields = String.join(&quot;, \n&quot;, fieldsOnly(set));</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        if (!fieldsOnly(set).isEmpty()) {</span>
+<span class="fc" id="L44">            fields = &quot;, &quot;+fields;</span>
+        }
+<span class="fc" id="L46">        jdbcTemplate.batchUpdate(String.format(CREATE_DEST_TABLE_TPL, table, fields));</span>
+<span class="fc" id="L47">    }</span>
+
+    @Override
+    public void createDefaultDestTable(JdbcTemplate jdbcTemplate, String table) {
+<span class="fc" id="L51">        jdbcTemplate.batchUpdate(String.format(CREATE_DEFAULT_DEST_TABLE_TPL, table));</span>
+<span class="fc" id="L52">    }</span>
+
+    @Override
+    public void createRawTable(JdbcTemplate jdbcTemplate, String table) {
+<span class="fc" id="L56">        jdbcTemplate.execute(String.format(CREATE_RAW_TABLE_TPL, RAW_PREFIX + table));</span>
+<span class="fc" id="L57">    }</span>
+
+
+    @Override
+    public String insertConstruction(String table, Set&lt;SchemaSource&gt; set) {
+<span class="fc" id="L62">        return String.format(INSERT_INTO_TPL,</span>
+<span class="fc" id="L63">                escapeTableName(table),</span>
+<span class="fc" id="L64">                String.join(&quot;,&quot;, mssqlfieldsToInsert(set)),</span>
+<span class="fc" id="L65">                placeHolders(set.size() + 2));</span>
+    }
+
+    @Override
+    public String mergeConstruction(String table, Set&lt;SchemaSource&gt; set) {
+
+<span class="fc" id="L71">        String idCol = escapeColumn(ID);</span>
+
+        // Colonnes reportées de la table de travail vers la table cible
+<span class="fc" id="L74">        String allColSelect = set.stream()</span>
+<span class="fc" id="L75">                .map(colName -&gt; String.format(&quot;trg.%s = src.%s&quot;, escapeColumn(colName.getColumnName()), escapeColumn(colName.getColumnName()))).collect(Collectors.joining(&quot;, &quot;));</span>
+
+<span class="fc" id="L77">        String sql = String.format(MERGE_INTO_TPL,</span>
+<span class="fc" id="L78">                escapeTableName(table), escapeTableName(table), idCol, idCol, allColSelect);</span>
+
+<span class="fc" id="L80">        log.info(&quot;Merging staging table and sink table with this command: {}&quot;, sql);</span>
+
+<span class="fc" id="L82">        return sql;</span>
+    }
+
+    @Override
+    public void addCol(JdbcTemplate jdbcTemplate, String table, String column, String dataType) {
+<span class="fc" id="L87">        String sql = existsQuery(table)</span>
+<span class="fc" id="L88">                + String.format(ALTER_TABLE_ADD_COLUMN_TPL, table, escapeColumn(column), getDataType(dataType));</span>
+<span class="fc" id="L89">        jdbcTemplate.batchUpdate(sql);</span>
+<span class="fc" id="L90">    }</span>
+
+    @Override
+    public void dropCol(JdbcTemplate jdbcTemplate, String table, String field) {
+<span class="fc" id="L94">        String sql = existsQuery(table)</span>
+<span class="fc" id="L95">                + String.format(ALTER_TABLE_DROP_COLUMN_TPL, table, field);</span>
+<span class="fc" id="L96">        jdbcTemplate.batchUpdate(sql);</span>
+<span class="fc" id="L97">    }</span>
+
+    @Override
+    public Set&lt;String&gt; destColumns(JdbcTemplate jdbcTemplate, String table) {
+<span class="fc" id="L101">        String sql = String.format(SELECT_DEST_COLUMNS_TPL, table, INSERT_DATE_COLUMN);</span>
+
+<span class="fc" id="L103">        return new HashSet&lt;&gt;(jdbcTemplate.queryForList(sql, String.class));</span>
+    }
+
+
+    @Override
+    public String existsQuery(String table) {
+<span class="fc" id="L109">        return String.format(IF_EXISTS_TABLE_TPL, table);</span>
+    }
+
+    @Override
+    public boolean existIndexQuery(JdbcTemplate jdbcTemplate, String tableName, String column) {
+<span class="fc" id="L114">        List&lt;Map&lt;String, Object&gt;&gt; index =</span>
+<span class="fc" id="L115">                jdbcTemplate.queryForList(String.format(SELECT_INDEX_TPL, column, tableName));</span>
+
+<span class="fc" id="L117">        return index.isEmpty();</span>
+    }
+
+    @Override
+    public String escapeColumn(String column) {
+<span class="fc" id="L122">        return &quot;[&quot; + column + &quot;]&quot;;</span>
+    }
+
+    @Override
+    public String escapeTableName(String table) {
+<span class="fc" id="L127">        return &quot;[&quot; + table + &quot;]&quot;;</span>
+    }
+
+    @Override
+    public void createIndex(JdbcTemplate jdbcTemplate, String tableName, String column) {
+<span class="fc bfc" id="L132" title="All 2 branches covered.">        if (existIndexQuery(jdbcTemplate, tableName, column)) {</span>
+<span class="fc" id="L133">            jdbcTemplate.execute(String.format(CREATE_INDEX_TPL, escapeColumn(column), escapeTableName(tableName)));</span>
+        }
+<span class="fc" id="L135">    }</span>
+
+    @Override
+    public void dropIndex(JdbcTemplate jdbcTemplate, String column) {
+<span class="fc" id="L139">        jdbcTemplate.execute(String.format(DROP_INDEX_TPL, escapeColumn(column)));</span>
+<span class="fc" id="L140">    }</span>
+
+    @Override
+    public int jsonNormalize(JdbcTemplate jdbcTemplate, String tableName) {
+<span class="nc" id="L144">        SqlParameterSource in = new MapSqlParameterSource()</span>
+<span class="nc" id="L145">                .addValue(&quot;@tableName&quot;, tableName, Types.NVARCHAR)</span>
+<span class="nc" id="L146">                .addValue(&quot;rows_count&quot;, Types.INTEGER);</span>
+<span class="nc" id="L147">        SimpleJdbcCall simpleJdbcCall = new SimpleJdbcCall(jdbcTemplate);</span>
+<span class="nc" id="L148">        Map&lt;String, Object&gt; result = simpleJdbcCall.withProcedureName(JSON_NORMALIZATION_PROCEDURE)</span>
+<span class="nc" id="L149">                .withSchemaName(DBO_SCHEMA)</span>
+<span class="nc" id="L150">                .declareParameters(new SqlParameter(&quot;@tableName&quot;, Types.NVARCHAR))</span>
+<span class="nc" id="L151">                .execute(in);</span>
+<span class="nc" id="L152">        return (int) result.get(&quot;rows_count&quot;);</span>
+    }
+
+    @Override
+    public Long countTopFive(JdbcTemplate jdbcTemplate, String table){
+<span class="fc" id="L157">        Long countTop = 0L;</span>
+        try{
+<span class="fc" id="L159">            countTop = jdbcTemplate.queryForObject(String.format(SQLSERVER_COUNT_TOP_FIVE_TPL, table), Long.class);</span>
+<span class="fc" id="L160">        }catch (Exception e){</span>
+<span class="fc" id="L161">            log.error(&quot;Une erreur est survenue lors de l'exécution de la requete Count sur la table {}&quot;, table);</span>
+<span class="fc" id="L162">        }</span>
+<span class="fc" id="L163">        return countTop;</span>
+    }
+
+    @Override
+    public Long countAll(JdbcTemplate jdbcTemplate, String table) {
+<span class="fc" id="L168">        Long count = 0L;</span>
+        try {
+<span class="fc" id="L170">            count = jdbcTemplate.queryForObject(String.format(SQLSERVER_COUNT_FROM_STATS_TPL, table), Long.class);</span>
+<span class="fc" id="L171">        } catch (Exception e) {</span>
+<span class="fc" id="L172">            log.error(&quot;Une erreur est survenue lors de l'exécution de la requete Count sur la table {}&quot;, table);</span>
+<span class="fc" id="L173">        }</span>
+<span class="fc" id="L174">        return count;</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

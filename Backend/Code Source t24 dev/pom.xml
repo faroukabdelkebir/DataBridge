@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.7</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.banquezitouna.t24_Extractor</groupId>
+  <artifactId>LP-T24Extractor</artifactId>
+  <version>1.0</version>
+  <name>LP-T24Extractor</name>
+  <description>Local Partitioning T24 Extractor</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <spring-cloud.version>2025.1.0</spring-cloud.version>
+    <artemis-intg.version>2.32.0</artemis-intg.version>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.release>21</maven.compiler.release>
+
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-batch</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.14.0</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-validator</groupId>
+      <artifactId>commons-validator</artifactId>
+      <version>1.8.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.10.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20240303</version>
+    </dependency>
+    <dependency>
+      <groupId>com.microsoft.sqlserver</groupId>
+      <artifactId>mssql-jdbc</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>com.alibaba.fastjson2</groupId>
+      <artifactId>fastjson2</artifactId>
+      <version>2.0.48</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.batch</groupId>
+      <artifactId>spring-batch-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>xom</groupId>
+      <artifactId>xom</artifactId>
+      <version>1.3.9</version>
+    </dependency>
+      <dependency>
+          <groupId>org.jetbrains</groupId>
+          <artifactId>annotations</artifactId>
+          <version>17.0.0</version>
+          <scope>compile</scope>
+      </dependency>
+
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ucp</artifactId>
+      <version>21.3.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.oracle.database.ha</groupId>
+      <artifactId>ons</artifactId>
+      <version>21.3.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.oracle.database.xml</groupId>
+      <artifactId>xdb</artifactId>
+      <version>21.4.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.oracle.database.xml</groupId>
+      <artifactId>xmlparserv2</artifactId>
+      <version>21.4.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.oracle.database.ha</groupId>
+      <artifactId>simplefan</artifactId>
+      <version>21.4.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ojdbc8</artifactId>
+      <version>21.3.0.0</version>
+    </dependency>
+
+
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- Génération du site Javadoc : mvn javadoc:javadoc
+             Déclaré ici (et non dans <plugins>) pour ne pas être résolu lors
+             d'un build hors-ligne ; le plugin n'est téléchargé qu'à l'appel. -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>3.11.2</version>
+          <configuration>
+            <source>21</source>
+            <additionalOptions>
+              <additionalOption>--enable-preview</additionalOption>
+            </additionalOptions>
+            <encoding>UTF-8</encoding>
+            <docencoding>UTF-8</docencoding>
+            <charset>UTF-8</charset>
+            <notimestamp>true</notimestamp>
+            <doctitle>Extracteur T24 (LP-T24Extractor ${project.version})</doctitle>
+            <windowtitle>Extracteur T24 - API</windowtitle>
+            <!-- La syntaxe est déjà validée à la compilation par -Xdoclint. -->
+            <doclint>none</doclint>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.13</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{argLine} --enable-preview -Xms64m -Xmx384m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m -XX:ActiveProcessorCount=4</argLine>
+          <forkCount>1</forkCount>
+          <reuseForks>true</reuseForks>
+        </configuration>
+      </plugin>
+
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <release>21</release>
+        <compilerArgs>
+          <arg>--enable-preview</arg>
+          <!-- Valide la syntaxe Javadoc (tags, references, HTML).
+               "-missing" : ne signale pas les commentaires absents. -->
+          <arg>-Xdoclint:all,-missing</arg>
+        </compilerArgs>
+      </configuration>
+    </plugin>
+    </plugins>
+    <finalName>extracteur-T24</finalName>
+  </build>
+</project>

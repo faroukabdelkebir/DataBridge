@@ -1,0 +1,37 @@
+<header class="page-head">
+  <h1 class="page-title">{{ 'recon.title' | translate }}</h1>
+  <p-button icon="pi pi-refresh" [text]="true" [rounded]="true"
+            [loading]="loading()" (onClick)="load()" />
+</header>
+
+<div class="surface-card page-card">
+  <p-table [value]="rows()" [loading]="loading()" [paginator]="true" [rows]="15" size="small">
+    <ng-template #header>
+      <tr>
+        <th>{{ 'recon.table' | translate }}</th>
+        <th>{{ 'recon.businessDate' | translate }}</th>
+        <th class="num">Oracle (T24)</th>
+        <th class="num">SQL Server (BI)</th>
+        <th class="num">{{ 'recon.delta' | translate }}</th>
+        <th class="num">{{ 'recon.rate' | translate }}</th>
+        <th>{{ 'jobs.status' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-r>
+      <tr>
+        <td class="mono">{{ r.tableName }}</td>
+        <td>{{ r.businessDate }}</td>
+        <td class="num">{{ r.oracleCount | number }}</td>
+        <td class="num">{{ r.sqlServerCount | number }}</td>
+        <td class="num" [class.ko-text]="r.delta !== 0">{{ r.delta | number }}</td>
+        <td class="num" [class]="r.reconciled ? 'ok-text' : 'ko-text'">
+          {{ r.reconciliationRate | number:'1.0-2' }}%
+        </td>
+        <td><p-tag [value]="r.status" [severity]="r.reconciled ? 'success' : 'danger'" /></td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="7" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</div>

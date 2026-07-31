@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SchemaSourceAudit.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.model</a> &gt; <span class="el_source">SchemaSourceAudit.java</span></div><h1>SchemaSourceAudit.java</h1><pre class="source lang-java linenums">package com.t24extractor.model;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+import static com.t24extractor.commons.Constants.SCHEMA_SOURCE_AUDIT;
+
+/**
+ * Trace d'un changement demandé sur une colonne, à appliquer au prochain job.
+ *
+ * &lt;p&gt;Activer ou désactiver une colonne depuis l'IHM ne modifie pas la table BI
+ * immédiatement : une ligne d'audit est écrite, et l'étape {@code BI_SYNC} la
+ * traduit en {@code ALTER TABLE} au démarrage de l'extraction suivante, puis la
+ * purge.
+ *
+ * &lt;p&gt;La décision se lit dans les écarts : {@code newSourceEnabled -
+ * oldSourceEnabled} vaut {@code +1} pour un ajout de colonne et {@code -1} pour
+ * une suppression ; il en va de même des champs d'indexation.
+ *
+ * @param sourceId          identifiant de la colonne dans SCHEMA_SOURCE
+ * @param sourceTableName   table BI concernée
+ * @param ColumnName        colonne concernée
+ * @param dataType          type ODS de la colonne ; {@code MAX} signale un champ
+ *                          multivalué nécessitant une table satellite
+ * @param newSourceEnabled  activation demandée (0 ou 1)
+ * @param oldSourceEnabled  activation précédente (0 ou 1)
+ * @param newSourceIndexed  indexation demandée (0 ou 1)
+ * @param oldSourceIndexed  indexation précédente (0 ou 1)
+ * @param id                clé technique de la ligne d'audit
+ * @see com.t24extractor.bi_sync.tasklet.BISyncTasklet
+ */
+@Table(SCHEMA_SOURCE_AUDIT)
+<span class="fc" id="L34">public record SchemaSourceAudit(</span>
+        @Id
+        @Column(&quot;id&quot;)
+        int id,
+
+        @Column(&quot;sourceId&quot;)
+        String sourceId,
+
+        @Column(&quot;sourceTable_name&quot;)
+        String sourceTableName,
+
+        @Column(&quot;sourceColumn_name&quot;)
+        String ColumnName,
+        @Column(&quot;sourceDataType&quot;)
+        String dataType,
+        @Column(&quot;newSource_enabled&quot;)
+        int newSourceEnabled,
+        @Column(&quot;oldSource_enabled&quot;)
+        int oldSourceEnabled,
+
+        @Column(&quot;newSourceIndexed&quot;)
+        int newSourceIndexed,
+        @Column(&quot;oldSourceIndexed&quot;)
+        int oldSourceIndexed
+
+) {
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

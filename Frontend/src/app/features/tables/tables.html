@@ -1,0 +1,72 @@
+<header>
+  <h1 class="page-title">{{ 'nav.transactions' | translate }}</h1>
+  <p class="page-subtitle">{{ 'dashboard.subtitle' | translate }}</p>
+</header>
+
+<div class="surface-card">
+  <p-table
+    #dt
+    [value]="transactions()"
+    dataKey="id"
+    [loading]="loading()"
+    [paginator]="true"
+    [rows]="10"
+    [rowsPerPageOptions]="[10, 20, 50]"
+    [globalFilterFields]="['id', 'customer', 'email', 'category']"
+    [tableStyle]="{ 'min-width': '60rem' }"
+    [currentPageReportTemplate]="'table.pageReport' | translate"
+    [showCurrentPageReport]="true">
+
+    <ng-template #caption>
+      <div class="table-toolbar">
+        <p-iconfield iconPosition="left">
+          <p-inputicon styleClass="pi pi-search" />
+          <input
+            pInputText
+            type="text"
+            [placeholder]="'common.search' | translate"
+            (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+        </p-iconfield>
+        <p-button [label]="'table.exportCsv' | translate" icon="pi pi-download"
+                  severity="secondary" [outlined]="true" (onClick)="dt.exportCSV()" />
+      </div>
+    </ng-template>
+
+    <ng-template #header>
+      <tr>
+        <th pSortableColumn="id">{{ 'table.id' | translate }} <p-sortIcon field="id" /></th>
+        <th pSortableColumn="customer">{{ 'table.customer' | translate }} <p-sortIcon field="customer" /></th>
+        <th pSortableColumn="category">{{ 'table.category' | translate }} <p-sortIcon field="category" /></th>
+        <th pSortableColumn="amount">{{ 'table.amount' | translate }} <p-sortIcon field="amount" /></th>
+        <th pSortableColumn="date">{{ 'table.date' | translate }} <p-sortIcon field="date" /></th>
+        <th pSortableColumn="status">{{ 'table.status' | translate }} <p-sortIcon field="status" /></th>
+        <th>{{ 'table.action' | translate }}</th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-row>
+      <tr>
+        <td class="mono">{{ row.id }}</td>
+        <td>
+          <div class="cust">
+            <span class="cust-name">{{ row.customer }}</span>
+            <span class="cust-mail">{{ row.email }}</span>
+          </div>
+        </td>
+        <td>{{ ('category.' + row.category) | translate }}</td>
+        <td>{{ row.amount | currency:'EUR' }}</td>
+        <td>{{ row.date | date:'dd/MM/yyyy' }}</td>
+        <td>
+          <p-tag [value]="('status.' + row.status) | translate" [severity]="statusSeverity(row.status)" />
+        </td>
+        <td>
+          <p-button icon="pi pi-eye" [rounded]="true" [text]="true" severity="secondary" />
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template #emptymessage>
+      <tr><td colspan="7" class="empty">{{ 'table.empty' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</div>

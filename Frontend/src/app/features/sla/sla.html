@@ -1,0 +1,36 @@
+<header class="page-head">
+  <h1 class="page-title">{{ 'sla.title' | translate }}</h1>
+  <p-button icon="pi pi-refresh" [text]="true" [rounded]="true"
+            [loading]="loading()" (onClick)="load()" />
+</header>
+
+<div class="surface-card page-card">
+  <p-table [value]="slas()" [loading]="loading()" size="small">
+    <ng-template #header>
+      <tr>
+        <th>{{ 'jobs.name' | translate }}</th>
+        <th>{{ 'sla.deadline' | translate }}</th>
+        <th>{{ 'sla.lastCompletion' | translate }}</th>
+        <th>{{ 'sla.status' | translate }}</th>
+        <th>{{ 'sla.lateBy' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-sla>
+      <tr>
+        <td class="mono">{{ sla.jobName }}</td>
+        <td>{{ sla.slaDeadline }}</td>
+        <td>{{ sla.lastCompletionTime | date:'dd/MM/yy HH:mm:ss' }}</td>
+        <td>
+          <p-tag [value]="sla.status"
+                 [severity]="sla.slaBreached ? 'danger' : 'success'" />
+        </td>
+        <td [class.ko-text]="sla.slaBreached">
+          @if (sla.slaBreached) { {{ sla.lateBySeconds | duration }} } @else { — }
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="5" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</div>

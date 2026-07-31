@@ -1,0 +1,71 @@
+
+server:
+  port: 8085
+
+spring:
+  config:
+    import: optional:file:.env[.properties]
+
+  application:
+    name: UserMS
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/bank_user?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+      format_sql: true
+      jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+    open-in-view: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8090/oauth2/jwks
+          issuer-uri:  http://localhost:8090
+
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, loggers
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: "@project.version@"
+    description: "User Management Microservice"
+
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.bank.platform.user: DEBUG
+    org.hibernate.SQL: WARN
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{40} - %msg%n"

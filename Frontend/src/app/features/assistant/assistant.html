@@ -1,0 +1,280 @@
+<header class="page-head">
+  <h1 class="page-title">{{ 'assistant.title' | translate }}</h1>
+  @if (health(); as h) {
+    <div style="display:flex; align-items:center; gap:.6rem;">
+      <p-tag [value]="h.ollama.available ? 'Ollama · ' + h.ollama.active_model : 'Ollama indisponible'"
+             [severity]="h.ollama.available ? 'success' : 'danger'" />
+      
+    </div>
+  }
+</header>
+
+@if (healthError()) {
+  <p-message severity="error" [text]="'assistant.serviceDown' | translate" styleClass="w-full" />
+}
+@if (ollamaDown()) {
+  <p-message severity="warn" [text]="'assistant.ollamaDown' | translate" styleClass="w-full" />
+}
+
+<p-tabs [value]="isVisitor() ? '2' : '0'">
+  <p-tablist>
+    @if (!isVisitor()) {
+      <p-tab value="0">{{ 'assistant.schedulerTab' | translate }}</p-tab>
+      <p-tab value="1">{{ 'assistant.qualityTab' | translate }}</p-tab>
+    }
+    <p-tab value="2" (click)="loadReports()">{{ 'assistant.historyTab' | translate }}</p-tab>
+  </p-tablist>
+  <p-tabpanels>
+
+
+
+    <!-- ═══ M3 : Ordonnancement ═══ -->
+    @if (!isVisitor()) {
+    <p-tabpanel value="0">
+      <div class="surface-card page-card">
+        <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
+          <p-button [label]="'assistant.computePlan' | translate" icon="pi pi-calendar-clock"
+                    [loading]="recoLaunching() || reco()?.status === 'computing'"
+                    [disabled]="ollamaDown()" (onClick)="launchReco(true)" />
+          <p-button icon="pi pi-refresh" [text]="true" [rounded]="true" (onClick)="refreshReco()" />
+          @if (reco(); as r) {
+            <p-tag [value]="r.status"
+                   [severity]="r.status === 'completed' ? 'success'
+                             : r.status === 'computing' ? 'info'
+                             : r.status === 'error' ? 'danger' : 'secondary'" />
+            @if (r.computed_at) {
+              <span style="opacity:.6; font-size:.82rem;">
+                {{ 'assistant.computedAt' | translate }} {{ r.computed_at }}
+                @if (r.duration_sec) { ({{ r.duration_sec }}s) }
+              </span>
+            }
+          }
+        </div>
+
+        @if (reco()?.status === 'computing') {
+          <p style="opacity:.6; font-size:.85rem; margin:.75rem 0 0;">
+            <i class="pi pi-spin pi-spinner"></i> {{ 'assistant.planComputing' | translate }}
+          </p>
+        }
+        @if (reco()?.status === 'error') {
+          <p-message severity="error" [text]="reco()?.error ?? ''" [styleClass]="'w-full'" [style]="{ 'margin-top': '.75rem' }" />
+        }
+      </div>
+
+      @if (reco()?.report; as plan) {
+        <div class="surface-card page-card" style="margin-top:1.25rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <h3 class="card-title" style="margin:0;">{{ 'assistant.plan' | translate }}</h3>
+            <p-button [label]="(showRawPlan() ? 'assistant.viewFriendly' : 'assistant.viewRaw') | translate"
+                      [icon]="showRawPlan() ? 'pi pi-table' : 'pi pi-code'"
+                      severity="secondary" [text]="true" size="small"
+                      (onClick)="showRawPlan.set(!showRawPlan())" />
+          </div>
+
+          @if (showRawPlan()) {
+            <pre style="margin:.75rem 0 0; white-space:pre-wrap; font-size:.82rem;
+                        font-family:ui-monospace, monospace;">{{ plan | json }}</pre>
+          } @else {
+            <div style="margin-top:.75rem;">
+              <app-smart-report [value]="plan" />
+            </div>
+          }
+        </div>
+      }
+    </p-tabpanel>
+
+    <!-- ═══ M1 : Qualité des données ═══ -->
+    <p-tabpanel value="1">
+      <div class="surface-card page-card">
+        <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
+          <p-select [options]="tables()" [(ngModel)]="selectedTable"
+                    [placeholder]="'recon.table' | translate" [filter]="true" />
+          <p-button [label]="'assistant.quickScore' | translate" icon="pi pi-bolt"
+                    [loading]="scoring()" [disabled]="auditing() || ollamaDown()"
+                    (onClick)="quickScore()" />
+          <p-button [label]="'assistant.fullAudit' | translate" icon="pi pi-search-plus"
+                    severity="secondary" [outlined]="true"
+                    [loading]="auditing()" [disabled]="scoring() || ollamaDown()"
+                    (onClick)="fullAudit()" />
+          @if (scoring() || auditing()) {
+            <span style="opacity:.65; font-size:.85rem;">
+              <i class="pi pi-spin pi-spinner"></i>
+              {{ 'assistant.running' | translate }} ({{ elapsed() }}s)
+            </span>
+          }
+        </div>
+        @if (auditing()) {
+          <p style="opacity:.6; font-size:.82rem; margin:.6rem 0 0;">
+            {{ 'assistant.auditHint' | translate }}
+          </p>
+        }
+      </div>
+
+      @if (report(); as r) {
+        <div class="surface-card page-card" style="margin-top:1.25rem;">
+          <div style="display:flex; justify-content:flex-end; margin-bottom:.5rem;">
+            <p-button [label]="'assistant.exportPdf' | translate" icon="pi pi-file-pdf"
+                      severity="secondary" [outlined]="true" size="small"
+                      (onClick)="openPdf()" />
+          </div>
+          <div style="display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <div style="font-size:2.4rem; font-weight:700; font-variant-numeric:tabular-nums;"
+                   [style.color]="scoreColor(r.global_score ?? 0)">
+                {{ r.global_score | number:'1.0-1' }}
+              </div>
+              <p-tag [value]="'Grade ' + (r.grade ?? '?')" [severity]="gradeSeverity(r.grade)" />
+            </div>
+
+            <div style="flex:1; min-width:260px; display:flex; flex-direction:column; gap:.5rem;">
+              @for (d of dimensionRows(); track d.key) {
+                <div style="display:flex; align-items:center; gap:.75rem;">
+                  <span style="width:11rem; font-size:.85rem;">{{ d.key }} · {{ d.label }}</span>
+                  <p-progressBar [value]="d.score" [showValue]="false"
+                                 style="flex:1" [style]="{ height: '8px' }"
+                                 [color]="scoreColor(d.score)" />
+                  <span class="num" style="width:3rem; font-size:.85rem;">{{ d.score | number:'1.0-0' }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (r.interpretation) {
+            <div style="margin-top:1.25rem; padding:1rem; border-radius:8px;
+                        background: color-mix(in srgb, var(--brand-accent) 6%, transparent);">
+              <h4 style="margin:0 0 .5rem; font-size:.9rem;">
+                <i class="pi pi-sparkles"></i> {{ 'assistant.interpretation' | translate }}
+              </h4>
+              <p style="margin:0; white-space:pre-wrap; font-size:.9rem;">{{ r.interpretation }}</p>
+            </div>
+          }
+
+          @if (r.improvements_by_impact?.length) {
+            <h4 style="margin:1.25rem 0 .5rem; font-size:.9rem;">{{ 'assistant.actions' | translate }}</h4>
+            <p-table [value]="r.improvements_by_impact!" size="small">
+              <ng-template #header>
+                <tr>
+                  <th>Dimension</th>
+                  <th class="num">{{ 'assistant.current' | translate }}</th>
+                  <th class="num">{{ 'assistant.maxGain' | translate }}</th>
+                  <th>{{ 'assistant.action' | translate }}</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-a>
+                <tr>
+                  <td>{{ a.dimension }}</td>
+                  <td class="num">{{ a.current | number:'1.0-1' }}</td>
+                  <td class="num ok-text">+{{ a.max_gain | number:'1.0-1' }}</td>
+                  <td>{{ a.action }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+        </div>
+      }
+    </p-tabpanel>
+    }
+    <!-- ═══ Historique des rapports ═══ -->
+    <p-tabpanel value="2">
+      <div class="surface-card page-card">
+        <p-table [value]="reports()" [loading]="reportsLoading()"
+                 [paginator]="true" [rows]="10" size="small">
+          <ng-template #header>
+            <tr>
+              <th>#</th>
+              <th>Agent</th>
+              <th>Type</th>
+              <th>{{ 'assistant.target' | translate }}</th>
+              <th>{{ 'assistant.model' | translate }}</th>
+              <th>{{ 'jobs.status' | translate }}</th>
+              <th class="num">{{ 'jobs.duration' | translate }}</th>
+              <th>{{ 'profile.date' | translate }}</th>
+              <th></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-r>
+            <tr>
+              <td class="mono">{{ r.id }}</td>
+              <td>{{ r.agent }}</td>
+              <td class="mono">{{ r.report_type }}</td>
+              <td class="mono">{{ r.target ?? '—' }}</td>
+              <td>{{ r.model ?? '—' }}</td>
+              <td><p-tag [value]="r.status" [severity]="r.status === 'completed' ? 'success' : 'danger'" /></td>
+              <td class="num">{{ r.duration_sec !== null ? (r.duration_sec | number:'1.0-1') + 's' : '—' }}</td>
+              <td>{{ r.created_at | date:'dd/MM/yy HH:mm' }}</td>
+              <td>
+                <p-button icon="pi pi-eye" [text]="true" [rounded]="true" size="small"
+                          (onClick)="openDetail(r)" />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="9" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabpanel>
+
+  </p-tabpanels>
+</p-tabs>
+
+<!-- ===== Dialog détail rapport ===== -->
+<p-dialog [header]="'assistant.reportDetail' | translate"
+          [visible]="detailVisible()" (visibleChange)="detailVisible.set($event)"
+          [modal]="true" [style]="{ width: '52rem', maxWidth: '95vw' }" [dismissableMask]="true">
+  @if (detail(); as d) {
+    <!-- Récap' du rapport -->
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:1rem;">
+      <p-tag [value]="d.agent" severity="info" />
+      <p-tag [value]="d.report_type" severity="secondary" />
+      @if (d.target) { <span class="mono" style="font-size:.85rem;">{{ d.target }}</span> }
+      <p-tag [value]="d.status" [severity]="d.status === 'completed' ? 'success' : 'danger'" />
+      <span style="opacity:.6; font-size:.82rem;">{{ d.created_at | date:'dd/MM/yy HH:mm' }}</span>
+      @if (d.duration_sec !== null) {
+        <span style="opacity:.6; font-size:.82rem;">· {{ d.duration_sec | number:'1.0-1' }}s</span>
+      }
+      <span style="margin-left:auto;"></span>
+      <p-button [label]="(showRawDetail() ? 'assistant.viewFriendly' : 'assistant.viewRaw') | translate"
+                [icon]="showRawDetail() ? 'pi pi-table' : 'pi pi-code'"
+                severity="secondary" [text]="true" size="small"
+                (onClick)="showRawDetail.set(!showRawDetail())" />
+    </div>
+
+    @if (d.error) {
+      <p-message severity="error" [text]="d.error" styleClass="w-full" />
+    }
+
+    @if (d.report) {
+      @if (showRawDetail()) {
+        <pre style="margin:0; white-space:pre-wrap; font-size:.8rem;
+                    font-family:ui-monospace, monospace; max-height:65vh; overflow:auto;">{{ d.report | json }}</pre>
+      } @else {
+        <div style="max-height:65vh; overflow:auto;">
+          <app-smart-report [value]="d.report" />
+        </div>
+      }
+    } @else if (!d.error) {
+      <p class="empty-state">{{ 'common.noData' | translate }}</p>
+    }
+  } @else {
+    <p class="empty-state"><i class="pi pi-spin pi-spinner"></i></p>
+  }
+</p-dialog>
+
+<!-- ===== Viewer PDF du rapport qualité ===== -->
+<p-dialog [header]="'assistant.pdfViewer' | translate"
+          [visible]="pdfVisible()" (visibleChange)="$event ? null : closePdf()"
+          [modal]="true" [style]="{ width: '60rem', maxWidth: '95vw', height: '90vh' }"
+          [contentStyle]="{ height: '100%', padding: '0' }" [dismissableMask]="true">
+  <ng-template #header>
+    <span class="p-dialog-title">{{ 'assistant.pdfViewer' | translate }}</span>
+    <div style="margin-left:auto;">
+      <p-button [label]="'assistant.download' | translate" icon="pi pi-download"
+                size="small" (onClick)="downloadPdf()" />
+    </div>
+  </ng-template>
+  @if (pdfUrl(); as url) {
+    <iframe [src]="url" title="PDF"
+            style="width:100%; height:100%; border:0; display:block;"></iframe>
+  }
+</p-dialog>

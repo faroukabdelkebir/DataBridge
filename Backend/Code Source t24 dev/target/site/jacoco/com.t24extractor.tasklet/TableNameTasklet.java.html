@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TableNameTasklet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.tasklet</a> &gt; <span class="el_source">TableNameTasklet.java</span></div><h1>TableNameTasklet.java</h1><pre class="source lang-java linenums">package com.t24extractor.tasklet;
+
+import com.t24extractor.model.TafjVoc;
+import com.t24extractor.repository.t24_repo.TafjVocRepository;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
+import org.springframework.batch.core.step.StepContribution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.stereotype.Component;
+
+import java.util.NoSuchElementException;
+
+/**
+ * Résout le nom physique Oracle d'une table T24 et son mode de stockage.
+ *
+ * &lt;p&gt;T24 ne stocke pas ses tables sous leur nom fonctionnel. La résolution se
+ * fait en deux temps :
+ * &lt;ol&gt;
+ *   &lt;li&gt;la classification (F_FILE_CONTROL) donne le préfixe, {@code F} ou
+ *       {@code FBNK} — d'où {@code CUSTOMER} → {@code FBNK.CUSTOMER} ;&lt;/li&gt;
+ *   &lt;li&gt;TAFJ_VOC traduit ce nom qualifié en table Oracle réelle
+ *       ({@code FBNK_CUSTOMER}) et indique son mode de stockage.&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;Écrit dans le contexte de job {@code Table_Name} et {@code Type} ; ce
+ * dernier détermine si la suite du flow lira du XML ou du BLOB.
+ *
+ * @see com.t24extractor.model.TafjVoc
+ */
+<span class="fc" id="L33">@Slf4j</span>
+@Component
+public class TableNameTasklet implements Tasklet {
+
+    private final TafjVocRepository tafjVocRepository;
+
+    private final FileControlServiceImpl fileControlService;
+
+<span class="fc" id="L41">    public TableNameTasklet(TafjVocRepository tafjVocRepository, FileControlServiceImpl fileControlService) {</span>
+<span class="fc" id="L42">        this.tafjVocRepository = tafjVocRepository;</span>
+<span class="fc" id="L43">        this.fileControlService = fileControlService;</span>
+<span class="fc" id="L44">    }</span>
+
+    @Setter
+    String t24TableName;
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return toujours {@link RepeatStatus#FINISHED}
+     * @throws NoSuchElementException si TAFJ_VOC ne connaît pas la table :
+     *         poursuivre reviendrait à interroger une table Oracle inexistante
+     */
+    @Override
+    public RepeatStatus execute(@NonNull StepContribution contribution, ChunkContext chunkContext) throws Exception {
+
+<span class="fc" id="L59">        log.debug(&quot;T24 Name {}&quot;, this.t24TableName);</span>
+
+        /*
+            Concatenation entre la classification &amp; le nom de la table T24
+            Ex: Classification= FBNK. + t24Name= ACCOUNT ==&gt; FBNK.ACCOUNT
+         */
+
+<span class="fc" id="L66">        String classification = fileControlService.classification(this.t24TableName);</span>
+<span class="fc" id="L67">        log.debug(&quot;Le retour de Service Classification est {}&quot;, String.join(&quot;.&quot;, classification, this.t24TableName));</span>
+<span class="fc" id="L68">        String t24SelectionName = String.join(&quot;.&quot;, classification, this.t24TableName);</span>
+
+
+        /*
+            Le correspondant de la table T24 sur Oracle
+         */
+<span class="fc" id="L74">       TafjVoc tafjVoc =  tafjVocRepository.findTafjVocByRecid(t24SelectionName)</span>
+<span class="fc" id="L75">                .orElseThrow(() -&gt; new NoSuchElementException(String.format(&quot;Veuillez verifier que la table %s existe.&quot;, t24SelectionName)));</span>
+
+        /*
+            Le singleMult des donnees T24 sur Oracle(Blob, XML, Clob)
+         */
+
+<span class="fc" id="L81">        log.info(String.valueOf(tafjVoc));</span>
+<span class="fc" id="L82">        String dbFileName = tafjVoc.orclFileName();</span>
+<span class="fc" id="L83">        char isBlob = tafjVoc.isBlob().charAt(0);</span>
+
+
+        /*
+          Passer les variables aux autres steps à travers le contexte.
+         */
+<span class="fc" id="L89">        chunkContext.getStepContext()</span>
+<span class="fc" id="L90">                .getStepExecution()</span>
+<span class="fc" id="L91">                .getJobExecution()</span>
+<span class="fc" id="L92">                .getExecutionContext()</span>
+<span class="fc" id="L93">                .put(&quot;Table_Name&quot;, dbFileName);</span>
+
+<span class="fc" id="L95">        chunkContext.getStepContext()</span>
+<span class="fc" id="L96">                .getStepExecution()</span>
+<span class="fc" id="L97">                .getJobExecution()</span>
+<span class="fc" id="L98">                .getExecutionContext()</span>
+<span class="fc" id="L99">                .put(&quot;Type&quot;, isBlob);</span>
+
+<span class="fc" id="L101">        return RepeatStatus.FINISHED;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

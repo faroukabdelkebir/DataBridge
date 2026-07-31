@@ -1,0 +1,65 @@
+<div class="layout" [class.collapsed]="collapsed()">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="DataBridge%201.png" alt="DataBridge" class="brand-icon" />
+      @if (!collapsed()) { <span>{{ 'brand' | translate }}</span> }
+    </div>
+
+    <nav class="nav">
+      @for (item of nav(); track item.route) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          class="nav-item"
+          [title]="item.labelKey | translate">
+          <i [class]="item.icon"></i>
+          @if (!collapsed()) { <span>{{ item.labelKey | translate }}</span> }
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <img src="wevioo.png" alt="Wevioo" class="brand-logo" />
+    </div>
+  </aside>
+
+  <!-- ===== Zone principale ===== -->
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="burger" (click)="toggle()" aria-label="menu">
+        <i class="pi pi-bars"></i>
+      </button>
+
+      <div class="spacer"></div>
+
+      <!-- Sélecteur de langue -->
+      <button type="button" class="lang-btn" (click)="langMenuRef.toggle($event)">
+        <i class="pi pi-globe"></i>
+        <span class="lang-code">{{ currentLangCode() | uppercase }}</span>
+        <i class="pi pi-angle-down"></i>
+      </button>
+      <p-menu #langMenuRef [model]="langMenu()" [popup]="true" />
+
+      <!-- Dark mode -->
+      <p-button
+        [icon]="theme.darkMode() ? 'pi pi-sun' : 'pi pi-moon'"
+        [rounded]="true" [text]="true" severity="secondary"
+        (onClick)="theme.toggle()"
+        [ariaLabel]="theme.darkMode() ? 'light' : 'dark'" />
+
+      <p-button icon="pi pi-bell" [rounded]="true" [text]="true" severity="secondary" />
+
+      <button type="button" class="profile" (click)="menu.toggle($event)">
+        <p-avatar [label]="(user()?.fullName ?? '?')[0]" shape="circle" styleClass="profile-avatar" />
+        <span class="profile-name">{{ user()?.fullName }}</span>
+        <i class="pi pi-angle-down"></i>
+      </button>
+      <p-menu #menu [model]="profileMenu()" [popup]="true" />
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Constants.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.commons</a> &gt; <span class="el_source">Constants.java</span></div><h1>Constants.java</h1><pre class="source lang-java linenums">package com.t24extractor.commons;
+
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * Constantes partagées : colonnes techniques, noms de tables, identifiants de
+ * steps et requêtes SQL des dépôts.
+ *
+ * &lt;p&gt;Plusieurs de ces valeurs sont des invariants à portée large : les colonnes
+ * techniques figurent dans les DDL générés et dans les vues BI, et les clés de
+ * contexte forment le contrat entre étapes du job. Les modifier a des effets à
+ * distance, sans erreur de compilation.
+ */
+public class Constants {
+    private Constants() {
+        /* This utility class should not be instantiated */
+    }
+
+    /**
+     * Colonnes techniques dont la présence est obligatoire dans toute table BI.
+     *
+     * &lt;ul&gt;
+     *   &lt;li&gt;{@code _id} — clé unique issue du RECID T24, renommée pour respecter
+     *       la convention MongoDB où la clé primaire s'appelle {@code _id} ;&lt;/li&gt;
+     *   &lt;li&gt;{@code ORIGINAL_ID} — dérivée de {@code _id}, elle regroupe les
+     *       versions d'un même enregistrement entre les tables live et
+     *       historisées ;&lt;/li&gt;
+     *   &lt;li&gt;{@code INSERT_DATE} — horodatage posé à l'insertion en SQL Server.&lt;/li&gt;
+     * &lt;/ul&gt;
+     */
+    public static final String ORIGINAL_ID = &quot;ORIGINAL_ID&quot;;
+    public static final String INSERT_DATE_COLUMN = &quot;INSERT_DATE&quot;;
+<span class="fc" id="L37">    protected static final Set&lt;String&gt; mandatoryColumns = new HashSet&lt;&gt;(Arrays.asList(&quot;_id&quot;, ORIGINAL_ID, INSERT_DATE_COLUMN));</span>
+
+    public static final String VIEW_PREFIX = &quot;V_&quot;;
+
+    public static final String ID = &quot;_id&quot;;
+
+    public static final int CHUNK_SIZE = 700;
+
+    public static final int BLOB_CHUNK_SIZE = 200;
+    public static final int BLOB_FETCH_SIZE = 200;
+    public static final String INCREMENTAL = &quot;Incremental&quot;;
+    public static final String FULL = &quot;Full&quot;;
+    public static final String BATCH_CONFIG = &quot;BATCH_CONFIG&quot;;
+    public static final String STATS = &quot;stats&quot;;
+    public static final String SCHEMA_SOURCE = &quot;SCHEMA_SOURCE&quot;;
+    public static final String SCHEMA_SOURCE_AUDIT = &quot;SCHEMA_SOURCE_AUDIT&quot;;
+    public static final String T24_METADATA = &quot;T24_Metadata&quot;;
+    public static final String RAW_PREFIX = &quot;RAW_&quot;;
+    public static final String SCHEDULED_OPS = &quot;SCHEDULED_OPS&quot;;
+
+    public static final String COB_STOPPED=&quot;STOP&quot;;
+    public static final String COB_RUNNING=&quot;COB_RUNNING&quot;;
+    public static final String COB_RECID=&quot;COB&quot;;
+
+    public static final String COUNT_ALL = &quot;countAll&quot;;
+    public static final String COUNT_CHUNK = &quot;countChunk&quot;;
+    public static final String FAILED_RETRY_COUNT = &quot;FAILED_RETRY_COUNT&quot;;
+
+
+    public static final String DAY_TO_EXTRACT = &quot;DAY_TO_EXTRACT&quot;;
+    public static final String EXTRACT = &quot;EXTRACT&quot;;
+    public static final String EXTRACTED = &quot;EXTRACTED&quot;;
+    public static final String COMPLETED_STATUS = &quot;COMPLETED&quot;;
+    public static final String FAILED_STATUS = &quot;FAILED&quot;;
+    public static final String RECID_COLUMN = &quot;RECID&quot;;
+    public static final String SERVICE_COLUMN = &quot;SERVICE_CONTROL&quot;;
+    public static final String SERVICE_TABLE = &quot;V_F_TSA_SERVICE&quot;;
+    public static final String STEP_COB_STATUS = &quot;COB_STATUS&quot;;
+    public static final String PROCESSED_ROWS = &quot;PROCESSED_ROWS&quot;;
+    public static final String MULTI_VALUE = &quot;StringMAX&quot;;
+    public static final String LOCAL_REF = &quot;Local_Ref&quot;;
+    public static final String SYS_SINGLE = &quot;sys.single&quot;;
+    public static final String VARCHAR_8000 = &quot;VARCHAR(8000)&quot;;
+    public static final String VARCHAR_MAX = &quot;VARCHAR(MAX)&quot;;
+    public static final String SINGLE = &quot;single&quot;;
+    public static final String S = &quot;S&quot;;
+    public static final String M = &quot;M&quot;;
+    public static final String USR = &quot;usr&quot;;
+    public static final String NEW_TABLE = &quot;NEW_TABLE&quot;;
+    public static final String MAX = &quot;MAX&quot;;
+    public static final String STANDARD_SELECTION_DICTIONARY = &quot;Standard_Selection_Dict&quot;;
+    public static final String BI_STANDARD_SELECTION = &quot;sysFieldOds&quot;;
+    public static final String ORACLE_TABLE_NAME = &quot;Table_Name&quot;;
+    public static final String COLONNE_REF = &quot;colonne_ref&quot;;
+    public static final String LAST_DATE = &quot;last_date&quot;;
+
+    public static final String MAX_VALUE = &quot;MAX_VALUE&quot;;
+    public static final String BI_SYNC = &quot;BI_SYNC&quot;;
+    public static final String BASIC_NORMALIZATION = &quot;BASIC_NORMALIZATION&quot;;
+    public static final String QUERY_BUILDER = &quot;QUERY_BUILDER&quot;;
+    public static final String T24_SELECTION_NAME_PARAMETER = &quot;T24_Selection_Name&quot;;
+    public static final String T24_DATE_PREFIX = &quot;T24Date&quot;;
+    public static final int INSERT_CODE = 0;
+    public static final int UPDATE_CODE = 1;
+    public static final int RETRY_COUNT0 = 0;
+    public static final int RETRY_COUNT1 = 1;
+    public static final int RETRY_COUNT2 = 2;
+    public static final int RETRY_COUNT3 = 3;
+    public static final String LAST_EXTRACTION = &quot;LAST_EXTRACTION&quot;;
+<span class="fc" id="L106">    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern(&quot;yyyyMMddHHmmss&quot;, Locale.ENGLISH);</span>
+
+    public static final String ID_TYPE= &quot;NVARCHAR(255) NOT NULL&quot;;
+    public static final String ORIGINAL_ID_TYPE = &quot;NVARCHAR(250) not null&quot;;
+
+    public static final String RECID = &quot;TN0010001&quot;;
+
+    public static final String RUN_ID = &quot;run.id&quot;;
+
+
+    public static final int CHUNKS_NUMBER = 700;
+    public static final int FETCH_SIZE = 1000;
+    public static final String FUNDS_TRANSFER_HIS = &quot;FUNDS.TRANSFER$HIS&quot;;
+    public static final String FBNK_CUSTOMER = &quot;FBNK_CUSTOMER&quot;;
+    public static final String FBNK_BILL_DETAILS = &quot;FBNK_AA_BILL_DETAILS&quot;;
+    public static final String CUSTOMER = &quot;CUSTOMER&quot;;
+    public static final String JSON_NORMALIZATION = &quot;JSON_NORMALIZATION&quot;;
+    public static final String QUERY_BUILDING_STEP = &quot;QueryBuildingStep&quot;;
+    public static final String AA_BILL_DETAILS = &quot;AA.BILL.DETAILS&quot;;
+
+    public static final String INITIAL_DATE = &quot;00000000&quot;;
+
+    /* =====================================================================
+     *
+     *  REQUÊTES SQL
+     *
+     *  Toutes les requêtes de l'application sont regroupées ici. Celles dont
+     *  le nom se termine par _TPL sont des gabarits destinés à
+     *  String.format ; les autres sont utilisables telles quelles.
+     *
+     *  Les requêtes marquées « Oracle » visent la source T24 (lecture seule),
+     *  les autres la base BI (SQL Server).
+     *
+     * ===================================================================== */
+
+    // ── Lecture des données T24 (Oracle) ─────────────────────────────────
+
+    /** Lecture d'une table T24 stockée en XML. Gabarit : table Oracle. */
+    public static final String SELECT_XML_RECORDS_TPL = &quot;SELECT  RECID , XMLRECORD FROM %s&quot;;
+
+    /**
+     * Répartition des lignes entre workers par hachage du ROWID.
+     * Paramètres : nombre de workers, index de la partition.
+     */
+    public static final String PARTITION_BY_ROWID = &quot;WHERE MOD(ORA_HASH(ROWID), ?) = ?&quot;;
+
+    /** Chargement « Incremental-specific » : mois courant et mois précédent. */
+    public static final String WHERE_RECID_CURRENT_AND_PREVIOUS_MONTH =
+            &quot; WHERE RECID like CONCAT('%-', to_char(sysdate, 'yyyymm'))&quot; +
+                    &quot; OR RECID like CONCAT('%-', to_char(sysdate, 'yyyymm')-1)&quot;;
+
+    /** Restriction d'une vue BLOB à une plage de lignes. Gabarit : vue, borne basse, borne haute. */
+    public static final String SELECT_VIEW_ROW_RANGE_TPL =
+            &quot;SELECT * FROM ( %s ) WHERE rowNumber &gt;= %d AND rowNumber &lt;= %d&quot;;
+
+    /** Vue BLOB : préfixe des colonnes sélectionnées. */
+    public static final String SELECT_BLOB_VIEW_PREFIX = &quot;SELECT RECID as FIELD_ID, &quot;;
+
+    /** Vue BLOB : suffixe portant le numéro de ligne. Gabarit : table Oracle. */
+    public static final String SELECT_BLOB_VIEW_SUFFIX_TPL = &quot;, ROWNUM rowNumber FROM V_%s t&quot;;
+
+    // ── Comptages ────────────────────────────────────────────────────────
+
+    /** Comptage exact, coûteux sur les grosses tables. Gabarit : table. */
+    public static final String COUNT_ALL_ROWS_TPL = &quot;SELECT COUNT(1) FROM %s&quot;;
+
+    /**
+     * Oracle : comptage par les statistiques du dictionnaire, avec repli sur
+     * les statistiques de table. Paramètres : table, table.
+     */
+    public static final String ORACLE_COUNT_FROM_STATS = &quot;&quot;&quot;
+            SELECT NVL(
+                (SELECT SUM(num_rows) FROM user_tab_partitions WHERE table_name = UPPER(?)),
+                (SELECT num_rows FROM user_tables WHERE table_name = UPPER(?))
+            ) AS total_rows
+            FROM dual
+            &quot;&quot;&quot;;
+
+    /** Oracle : comptage plafonné à cinq lignes. Gabarit : table. */
+    public static final String ORACLE_COUNT_TOP_FIVE_TPL =
+            &quot;SELECT COUNT(*) FROM (SELECT 1 FROM %s FETCH FIRST 5 ROWS ONLY)&quot;;
+
+    /** SQL Server : comptage par les statistiques de partition. Gabarit : table. */
+    public static final String SQLSERVER_COUNT_FROM_STATS_TPL = &quot;&quot;&quot;
+            SELECT
+               Total_Rows= SUM(st.row_count)
+            FROM
+               sys.dm_db_partition_stats st
+            WHERE
+                object_name(object_id) = '%s'&quot;&quot;&quot;;
+
+    /** SQL Server : comptage plafonné à cinq lignes. Gabarit : table. */
+    public static final String SQLSERVER_COUNT_TOP_FIVE_TPL = &quot;SELECT TOP 5 count(*) FROM dbo.%s&quot;;
+
+    // ── Structure des tables BI (SQL Server) ─────────────────────────────
+
+    /** Test d'existence conditionnant l'instruction suivante. Gabarit : table. */
+    public static final String IF_EXISTS_TABLE_TPL =
+            &quot;IF EXISTS (SELECT * FROM sys.tables WHERE name ='%s')&quot;;
+
+    /** Colonnes métier d'une table BI, hors colonnes techniques. Gabarit : table, colonne INSERT_DATE. */
+    public static final String SELECT_DEST_COLUMNS_TPL =
+            &quot;SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS\n&quot;
+                    + &quot;WHERE TABLE_NAME = N'%s' AND COLUMN_NAME NOT IN ('_id', 'ORIGINAL_ID', '%s')&quot;;
+
+    /** Présence d'une colonne dans une table. Paramètres : table, colonne. */
+    public static final String COUNT_COLUMN_IN_TABLE =
+            &quot;SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS &quot;
+                    + &quot;WHERE TABLE_NAME = ? AND COLUMN_NAME = ?&quot;;
+
+    /** Valeur par défaut de INSERT_DATE : horodatage compacté en BIGINT. */
+    public static final String INSERT_DATE_DEFAULT =
+            &quot;BIGINT default replace(replace(replace(CONVERT([varchar](19),sysdatetime(),20),'-',''),':',''),' ','')&quot;;
+
+    /**
+     * Création d'une table BI avec ses colonnes métier.
+     *
+     * &lt;p&gt;Gabarit : nom de table (répété), bloc des colonnes métier — vide, ou
+     * précédé d'une virgule.
+     */
+    public static final String CREATE_DEST_TABLE_TPL =
+            &quot;IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='%1$s') &quot;
+                    + &quot;CREATE TABLE [%1$s](&quot;
+                    + &quot;[&quot; + ID + &quot;]&quot; + ID_TYPE + &quot;, \n&quot;
+                    + &quot;[&quot; + ORIGINAL_ID + &quot;]&quot; + ORIGINAL_ID_TYPE + &quot; ,\n&quot;
+                    + &quot;[&quot; + INSERT_DATE_COLUMN + &quot;] &quot; + INSERT_DATE_DEFAULT + &quot; \n&quot;
+                    + &quot;%2$s, \n&quot;
+                    + &quot;INDEX ins_date_idx NONCLUSTERED ([&quot; + INSERT_DATE_COLUMN + &quot;]) \n&quot;
+                    + &quot;)&quot;;
+
+    /** Création d'une table BI réduite aux colonnes techniques. Gabarit : nom de table (répété). */
+    public static final String CREATE_DEFAULT_DEST_TABLE_TPL =
+            &quot;IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='%1$s') &quot;
+                    + &quot;CREATE TABLE [%1$s](&quot;
+                    + &quot;[&quot; + ID + &quot;]&quot; + ID_TYPE + &quot;, \n&quot;
+                    + &quot;[&quot; + ORIGINAL_ID + &quot;]&quot; + ORIGINAL_ID_TYPE + &quot; ,\n&quot;
+                    + &quot;[&quot; + INSERT_DATE_COLUMN + &quot;] &quot; + INSERT_DATE_DEFAULT + &quot;, \n&quot;
+                    + &quot;INDEX ins_date_idx NONCLUSTERED ([&quot; + INSERT_DATE_COLUMN + &quot;]) \n&quot;
+                    + &quot;)&quot;;
+
+    /** Création de la table de dépôt brut. Gabarit : table déjà préfixée (répétée). */
+    public static final String CREATE_RAW_TABLE_TPL =
+            &quot;IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='%1$s') &quot;
+                    + &quot;CREATE TABLE [%1$s](raw_id   NVARCHAR(255),\nraw_data VARCHAR(MAX))&quot;;
+
+    /** Ajout de colonne. Gabarit : table, colonne échappée, type SQL. */
+    public static final String ALTER_TABLE_ADD_COLUMN_TPL = &quot;ALTER TABLE %s\nADD %s %s&quot;;
+
+    /** Suppression de colonne. Gabarit : table, colonne. */
+    public static final String ALTER_TABLE_DROP_COLUMN_TPL = &quot;\n ALTER TABLE %s \n DROP COLUMN %s&quot;;
+
+    /** Vidage d'une table. Gabarit : table échappée. */
+    public static final String TRUNCATE_TABLE_TPL = &quot;TRUNCATE TABLE %s&quot;;
+
+    /** Suppression d'une table. Gabarit : table échappée. */
+    public static final String DROP_TABLE_TPL = &quot;DROP TABLE %s&quot;;
+
+    // ── Index ────────────────────────────────────────────────────────────
+
+    /** Recherche d'un index par nom. Gabarit : nom d'index, table. */
+    public static final String SELECT_INDEX_TPL = &quot;&quot;&quot;
+            SELECT name
+            FROM sys.indexes
+            WHERE name='%s' AND object_id = OBJECT_ID('dbo.%s')&quot;&quot;&quot;;
+
+    /** Création d'un index. Gabarit : colonne échappée (nom de l'index), table échappée. */
+    public static final String CREATE_INDEX_TPL = &quot;CREATE NONCLUSTERED INDEX %1$s ON %2$s(%1$s)&quot;;
+
+    /** Suppression d'un index. Gabarit : index échappé. */
+    public static final String DROP_INDEX_TPL = &quot;DROP INDEX %s&quot;;
+
+    // ── Alimentation des tables BI ───────────────────────────────────────
+
+    /** INSERT paramétré. Gabarit : table échappée, colonnes, placeholders. */
+    public static final String INSERT_INTO_TPL = &quot;INSERT INTO %s(%s) VALUES (%s);&quot;;
+
+    /** Rapprochement d'une table avec sa version de travail. Gabarit : table, table, clé, clé, affectations. */
+    public static final String MERGE_INTO_TPL =
+            &quot;MERGE INTO %s trg USING (SELECT * FROM %s ) src ON  (src.%s= trg.%s ) %s ); &quot;;
+
+    /** Enregistrement d'un champ multivalué, sans doublon. Gabarit : table BI, champ, indicateur local_ref. */
+    public static final String INSERT_METADATA_IF_ABSENT_TPL =
+            &quot;IF NOT EXISTS(SELECT * from &quot; + T24_METADATA + &quot; Where [Table_Name]='%1$s' and MultiValueFields='%2$s')&quot;
+                    + &quot;BEGIN\n&quot;
+                    + &quot;         INSERT INTO &quot; + T24_METADATA + &quot; VALUES ('%1$s','%2$s','%3$s')\n&quot;
+                    + &quot;         END&quot;;
+
+    /** UPDATE composé dynamiquement. Gabarit : table, affectations, condition. */
+    public static final String UPDATE_TABLE_TPL = &quot;UPDATE %s\n SET %s\n WHERE %s&quot;;
+
+    /** Correction du type de stockage détecté via TAFJ. Gabarit : type, table Oracle. */
+    public static final String UPDATE_BATCH_CONFIG_TYPE_TPL =
+            &quot;UPDATE batch_config SET \&quot;Type\&quot; = '%s' WHERE \&quot;TableName\&quot; = '%s'&quot;;
+
+    // ── Normalisation JSON : tables satellites TABLE#CHAMP ───────────────
+
+    /** Création d'un satellite multivalué. Gabarit : table, champ, table, champ, type de clé, champ. */
+    public static final String CREATE_SATELLITE_TABLE_TPL =
+            &quot;IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='%1$s#%2$s') &quot;
+                    + &quot;CREATE TABLE [%1$s#%2$s] ([&quot; + ID + &quot;]%3$s, \n&quot;
+                    + &quot;[%2$s] nvarchar(355) ,\n&quot;
+                    + &quot;[MV_SEQUENCE] int ,\n&quot;
+                    + &quot;[SEQUENCE] int \n&quot;
+                    + &quot;)&quot;;
+
+    /** Création d'un satellite LOCAL.REF, sans multivaleur. Gabarit : table, champ, type de clé. */
+    public static final String CREATE_LOCAL_REF_SATELLITE_TPL =
+            &quot;IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='%1$s#%2$s') &quot;
+                    + &quot;CREATE TABLE [%1$s#%2$s] ([&quot; + ID + &quot;]%3$s, \n&quot;
+                    + &quot;[%2$s] nvarchar(355) ,\n&quot;
+                    + &quot;[SEQUENCE] int \n&quot;
+                    + &quot;)&quot;;
+
+    /** Purge d'un satellite avant réalimentation — garantit l'idempotence. Gabarit : table, champ. */
+    public static final String PURGE_SATELLITE_TPL =
+            &quot;IF EXISTS (SELECT * FROM sys.tables WHERE name='%1$s#%2$s') DELETE FROM [%1$s#%2$s]&quot;;
+
+    /** Éclatement d'un champ multivalué. Gabarit : table, champ (répétés). */
+    public static final String INSERT_SATELLITE_TPL = &quot;&quot;&quot;
+            INSERT INTO [%1$s#%2$s] (_id, %2$s, [MV_SEQUENCE], [SEQUENCE])
+            SELECT _id, lda.%2$s, lda.[MV_SEQUENCE], lda.[SEQUENCE]
+            FROM %1$s AS ld
+            CROSS APPLY OPENJSON(ld.%2$s)
+            WITH (
+              %2$s nvarchar(255) N'strict $.%2$s',
+              [MV_SEQUENCE] int N'$.mvsequence',
+              [SEQUENCE] int N'$.sequence'
+            ) AS lda&quot;&quot;&quot;;
+
+    /** Éclatement d'un champ LOCAL.REF. Gabarit : table, champ (répétés). */
+    public static final String INSERT_LOCAL_REF_SATELLITE_TPL = &quot;&quot;&quot;
+            INSERT INTO [%1$s#%2$s] (_id, [%2$s], [SEQUENCE])
+            SELECT _id, lf.%2$s, lf.[SEQUENCE]
+            FROM %1$s AS LF_table
+            CROSS APPLY OPENJSON(LF_table.%2$s)
+            WITH (
+            %2$s nvarchar(355) N'$.%2$s',
+            [SEQUENCE] int N'$.sequence'
+            ) AS lf&quot;&quot;&quot;;
+
+    /** Procédure de normalisation appelée sur la base BI. */
+    public static final String JSON_NORMALIZATION_PROCEDURE = &quot;basic_json_normalization&quot;;
+
+    /** Schéma portant la procédure de normalisation. */
+    public static final String DBO_SCHEMA = &quot;dbo&quot;;
+
+    // ── Référentiel des colonnes (SCHEMA_SOURCE) ─────────────────────────
+    //
+    //    Requêtes nommées des dépôts Spring Data JDBC : les paramètres y sont
+    //    désignés par leur nom (:tableName), et non par des points d'interrogation.
+
+    /** Colonnes actives d'une table. Paramètre nommé : tableName. */
+    public static final String SCHEMA_ENABLED = &quot;SELECT id, table_name, column_name, datatype, _enabled, indexed, ssTag, single_mult, local_ref FROM &quot;+SCHEMA_SOURCE+&quot; WHERE _enabled = 1 and table_name=:tableName&quot;;
+
+    /** Toutes les colonnes déclarées d'une table. Paramètre nommé : tableName. */
+    public static final String SCHEMA_TABLE = &quot;SELECT id, table_name, column_name, datatype, _enabled, indexed, ssTag, single_mult, local_ref FROM &quot;+SCHEMA_SOURCE+&quot; WHERE table_name = :tableName &quot;;
+
+    /** Une colonne précise. Paramètres nommés : tableName, columnName. */
+    public static final String SCHEMA_COLUMN_TABLE = &quot;SELECT id, table_name,  column_name, datatype, _enabled, indexed, ssTag, single_mult, local_ref FROM &quot;+SCHEMA_SOURCE+&quot; WHERE table_name= :tableName AND column_name= :columnName&quot;;
+
+    /** Nombre de colonnes déclarées ; zéro signale une table jamais chargée. */
+    public static final String COUNT_ROWS_TABLE_SCHEMA_SOURCE = &quot;SELECT count(id) FROM &quot;+SCHEMA_SOURCE+&quot; WHERE table_name= :tableName&quot;;
+
+    /** Nombre de colonnes actives. Paramètre nommé : tableName. */
+    public static final String COUNT_ENABLED_ROWS_TABLE_SCHEMA_SOURCE = &quot;SELECT count(id) FROM &quot;+SCHEMA_SOURCE+&quot; WHERE table_name= :tableName AND _enabled = 1&quot;;
+
+    /**
+     * Changements de schéma en attente. Paramètre nommé : tableName.
+     *
+     * &lt;p&gt;Les indicateurs sont convertis en entiers : c'est l'écart entre l'ancien
+     * et le nouveau qui décide de l'ALTER TABLE à émettre.
+     */
+    public static final String SCHEMA_AUDIT_TABLE = &quot;SELECT &quot; +
+            &quot;id, sourceId, sourceTable_name, sourceColumn_name, sourceDatatype, cast (newSource_enabled as int) as newSource_enabled, cast(oldSource_enabled as int) as oldSource_enabled, cast (newSourceIndexed as int) as newSourceIndexed, cast (oldSourceIndexed as int) as oldSourceIndexed FROM &quot;+SCHEMA_SOURCE_AUDIT+&quot; WHERE sourceTable_name = :tableName&quot;;
+
+    /** Activation d'une colonne. Paramètres nommés : enabled, tableName, columnName. */
+    public static final String UPDATE_SCHEMA_SOURCE_ENABLED = &quot;UPDATE &quot; + SCHEMA_SOURCE
+            + &quot; SET _enabled = :enabled WHERE table_name = :tableName AND column_name = :columnName&quot;;
+
+    /** Opérations de maintenance en attente pour une table. Paramètre nommé : table. */
+    public static final String SCHEDULED_OPS_QUERY = &quot;SELECT table_name, column_name, op FROM &quot; + SCHEDULED_OPS + &quot; WHERE table_name = :table&quot;;
+
+    // ── Sans appelant à ce jour ──────────────────────────────────────────
+    //
+    //    Ces deux préfixes ne sont référencés nulle part dans le code actuel.
+    //    Conservés en attendant confirmation qu'ils sont bien obsolètes.
+
+    /** Préfixe d'un comptage sur RECID ; à compléter par le nom de table. */
+    public static final String COUNT_QUERY = &quot;SELECT COUNT (RECID) FROM &quot;;
+
+    /** Préfixe d'une lecture XML ; à compléter par le nom de table. */
+    public static final String BASE_QUERY = &quot;SELECT RECID, XMLRECORD FROM &quot;;
+
+    // ── Configuration des extractions (BATCH_CONFIG) ─────────────────────
+
+    /** Configuration complète de chaque extraction, pour l'IHM. */
+    public static final String SELECT_BATCH_CONFIGS = &quot;&quot;&quot;
+            SELECT id, TableName, T24SelectionName, colonne_ref, chargement,
+                   last_date, min_date, enabled, scheduler, scheduler_time
+            FROM BATCH_CONFIG
+            ORDER BY id
+            &quot;&quot;&quot;;
+
+    /** Extractions planifiées et actives, lues par le scheduler. */
+    public static final String SELECT_SCHEDULED_BATCHES = &quot;&quot;&quot;
+            SELECT id, scheduler_time
+            FROM BATCH_CONFIG
+            WHERE enabled = 1
+              AND scheduler = 1
+              AND scheduler_time IS NOT NULL
+              AND LTRIM(RTRIM(scheduler_time)) &lt;&gt; ''
+            &quot;&quot;&quot;;
+
+    /** Heure de planification enregistrée. Paramètre : identifiant. */
+    public static final String SELECT_SCHEDULER_TIME =
+            &quot;SELECT scheduler_time FROM BATCH_CONFIG WHERE id = ?&quot;;
+
+    /** Bascule de la planification. Paramètres : indicateur, identifiant. */
+    public static final String UPDATE_SCHEDULER =
+            &quot;UPDATE BATCH_CONFIG SET scheduler = ? WHERE id = ?&quot;;
+
+    /** Bascule et heure de planification. Paramètres : indicateur, heure, identifiant. */
+    public static final String UPDATE_SCHEDULER_AND_TIME =
+            &quot;UPDATE BATCH_CONFIG SET scheduler = ?, scheduler_time = ? WHERE id = ?&quot;;
+
+    /** Activation d'une extraction. Paramètres : indicateur, identifiant. */
+    public static final String UPDATE_BATCH_ENABLED =
+            &quot;UPDATE BATCH_CONFIG SET enabled = ? WHERE id = ?&quot;;
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

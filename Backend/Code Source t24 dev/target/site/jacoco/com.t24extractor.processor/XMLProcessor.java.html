@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.processor</a> &gt; <span class="el_source">XMLProcessor.java</span></div><h1>XMLProcessor.java</h1><pre class="source lang-java linenums">package com.t24extractor.processor;
+
+import com.alibaba.fastjson2.JSONArray;
+
+import com.t24extractor.model.T24Table;
+import lombok.Setter;
+import nu.xom.Attribute;
+import nu.xom.Builder;
+import nu.xom.Element;
+import nu.xom.Elements;
+import org.json.JSONObject;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.infrastructure.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Décode un XMLRECORD T24 en document JSON nommé et typé.
+ *
+ * &lt;p&gt;S'appuie sur le dictionnaire {@code Mongo_Standard_Selection} pour
+ * remplacer les balises anonymes ({@code c1}, {@code c2}…) par les noms de
+ * champs métier.
+ *
+ * &lt;h2&gt;Multivaluation T24&lt;/h2&gt;
+ * T24 encode la répétition dans deux attributs : {@code m} (multivaleur) et
+ * {@code s} (sous-valeur). L'un comme l'autre peuvent manquer, et chaque
+ * combinaison a une signification :
+ * &lt;table class=&quot;striped&quot;&gt;
+ *   &lt;caption&gt;Interprétation des attributs&lt;/caption&gt;
+ *   &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Attributs&lt;/th&gt;&lt;th&gt;mvsequence&lt;/th&gt;&lt;th&gt;sequence&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+ *   &lt;tbody&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code m} et {@code s}&lt;/td&gt;&lt;td&gt;{@code m}&lt;/td&gt;&lt;td&gt;{@code s}&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code m} seul&lt;/td&gt;&lt;td&gt;{@code m}&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code s} seul&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;{@code s}&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;aucun&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;/tbody&gt;
+ * &lt;/table&gt;
+ * Ces séquences sont conservées dans le JSON, puis éclatées en tables
+ * satellites par {@link com.t24extractor.tasklet.Json_Flattener} : elles
+ * rattachent chaque ligne fille à son enregistrement parent.
+ *
+ * &lt;h2&gt;Champs LOCAL.REF&lt;/h2&gt;
+ * Les champs locaux sont regroupés dans un conteneur unique, repéré par
+ * {@code localRefPos}. Ils sont adressés par leur position ({@code m1},
+ * {@code m2}…) et peuvent être simples ou multivalués.
+ */
+@Component
+@StepScope
+<span class="fc" id="L55">public class XMLProcessor implements ItemProcessor&lt;T24Table, com.alibaba.fastjson2.JSONObject&gt; {</span>
+    private static final String MV_SEQUENCE = &quot;mvsequence&quot;;
+    private static final String SEQUENCE = &quot;sequence&quot;;
+
+    @Value(&quot;#{jobExecutionContext['Mongo_Standard_Selection']}&quot;)
+    String ss;
+
+    @Setter
+    String oracleTableName;
+
+    /**
+     * {@inheritDoc}
+     *
+     * &lt;p&gt;Le document produit porte toujours {@code _id} (le RECID) et
+     * {@code ORIGINAL_ID}. Sur les tables historisées ({@code #HIS}, {@code #ARC}),
+     * {@code ORIGINAL_ID} est le RECID amputé de son numéro de version, ce qui
+     * permet de regrouper les versions d'un même enregistrement.
+     *
+     * @param t24TableItem enregistrement brut lu sur Oracle
+     * @return le document JSON prêt à être inséré en BI
+     * @throws Exception si le XMLRECORD est malformé
+     */
+    @Override
+    public com.alibaba.fastjson2.JSONObject process(final T24Table t24TableItem) throws Exception {
+<span class="fc" id="L79">        ProcessorContext ctx = buildContext();</span>
+<span class="fc" id="L80">        String recID = t24TableItem.getRecid();</span>
+<span class="fc" id="L81">        com.alibaba.fastjson2.JSONObject jsonObject = initializeOutput(recID);</span>
+
+<span class="fc" id="L83">        final Builder parser = new Builder();</span>
+<span class="fc" id="L84">        final InputStream is = new ByteArrayInputStream(t24TableItem.getXmlRecord().getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L85">        final nu.xom.Document xmlRecord = parser.build(is);</span>
+<span class="fc" id="L86">        final Element element = xmlRecord.getRootElement();</span>
+<span class="fc" id="L87">        final Elements children = element.getChildElements();</span>
+
+<span class="fc" id="L89">        boolean stopProcessing = false;</span>
+<span class="fc bfc" id="L90" title="All 4 branches covered.">        for (int i = 0; i &lt; children.size() &amp;&amp; !stopProcessing; i++) {</span>
+<span class="fc" id="L91">            Element current = children.get(i);</span>
+<span class="fc" id="L92">            String localName = current.getLocalName();</span>
+
+<span class="fc bfc" id="L94" title="All 2 branches covered.">            if (current.getValue().trim().isEmpty()) {</span>
+<span class="fc" id="L95">                element.removeChild(current);</span>
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">            } else if (ctx.sysFieldJs.has(localName)) {</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">                if (isMultiSystemField(ctx, current)) {</span>
+<span class="fc" id="L98">                    putMultiSystemField(jsonObject, element, current, ctx);</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">                } else if (isSingleSystemField(ctx, current)) {</span>
+<span class="fc" id="L100">                    jsonObject.put(ctx.sysFieldJs.get(localName).toString(), current.getValue());</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">                } else if (localName.equals(ctx.local)) {</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">                    if (ctx.usrFieldJs.isEmpty()) {</span>
+<span class="fc" id="L103">                        stopProcessing = true;</span>
+                    } else {
+<span class="fc" id="L105">                        putLocalRefField(jsonObject, children, i, current, ctx);</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L110">        return jsonObject;</span>
+    }
+
+    private ProcessorContext buildContext() {
+<span class="fc" id="L114">        JSONObject ts = new JSONObject(ss);</span>
+<span class="fc" id="L115">        return new ProcessorContext(</span>
+<span class="fc" id="L116">                ts.getJSONArray(&quot;sysField&quot;).getJSONObject(0),</span>
+<span class="fc" id="L117">                ts.getJSONArray(&quot;typeField&quot;).getJSONObject(0),</span>
+<span class="fc" id="L118">                ts.getJSONArray(&quot;usrField&quot;).getJSONObject(0),</span>
+<span class="fc" id="L119">                ts.getJSONArray(&quot;UsrFieldType&quot;).getJSONObject(0),</span>
+<span class="fc" id="L120">                ts.getJSONArray(&quot;localRefPos&quot;).get(0).toString()</span>
+        );
+    }
+
+    private com.alibaba.fastjson2.JSONObject initializeOutput(String recID) {
+<span class="fc" id="L125">        com.alibaba.fastjson2.JSONObject jsonObject = new com.alibaba.fastjson2.JSONObject();</span>
+<span class="fc" id="L126">        jsonObject.put(&quot;_id&quot;, recID);</span>
+<span class="pc bpc" id="L127" title="1 of 6 branches missed.">        if ((oracleTableName.contains(&quot;#HIS&quot;) || oracleTableName.contains(&quot;#ARC&quot;)) &amp;&amp; recID.contains(&quot;;&quot;)) {</span>
+<span class="fc" id="L128">            jsonObject.put(&quot;ORIGINAL_ID&quot;, recID.substring(0, recID.indexOf(&quot;;&quot;)));</span>
+        } else {
+<span class="fc" id="L130">            jsonObject.put(&quot;ORIGINAL_ID&quot;, recID);</span>
+        }
+<span class="fc" id="L132">        return jsonObject;</span>
+    }
+
+    private boolean isMultiSystemField(ProcessorContext ctx, Element current) {
+<span class="fc" id="L136">        String localName = current.getLocalName();</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        return &quot;M&quot;.equals(ctx.sysTypeFieldJs.get(localName))</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">                &amp;&amp; !localName.equals(ctx.local)</span>
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">                &amp;&amp; !&quot;DATE_TIME&quot;.equals(ctx.sysFieldJs.get(localName).toString())</span>
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">                &amp;&amp; !current.getValue().trim().isEmpty();</span>
+    }
+
+    private boolean isSingleSystemField(ProcessorContext ctx, Element current) {
+<span class="fc" id="L144">        String localName = current.getLocalName();</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">        return &quot;DATE_TIME&quot;.equals(ctx.sysFieldJs.get(localName).toString())</span>
+<span class="pc bpc" id="L146" title="1 of 4 branches missed.">                || (&quot;S&quot;.equals(ctx.sysTypeFieldJs.get(localName)) &amp;&amp; !localName.equals(ctx.local));</span>
+    }
+
+    private void putMultiSystemField(com.alibaba.fastjson2.JSONObject jsonObject, Element element, Element current, ProcessorContext ctx) {
+<span class="fc" id="L150">        JSONArray jsonArray = new JSONArray();</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        for (Element child : element.getChildElements(current.getLocalName())) {</span>
+<span class="fc" id="L152">            com.alibaba.fastjson2.JSONObject entry = createMultiValueEntry(child, ctx);</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">            if (!entry.isEmpty()) {</span>
+<span class="fc" id="L154">                jsonArray.add(entry);</span>
+            }
+<span class="fc" id="L156">            jsonObject.put(ctx.sysFieldJs.get(child.getLocalName()).toString(), jsonArray);</span>
+<span class="fc" id="L157">        }</span>
+<span class="fc" id="L158">    }</span>
+
+    private com.alibaba.fastjson2.JSONObject createMultiValueEntry(Element child, ProcessorContext ctx) {
+<span class="fc" id="L161">        int attrCount = child.getAttributeCount();</span>
+<span class="fc" id="L162">        com.alibaba.fastjson2.JSONObject entry = new com.alibaba.fastjson2.JSONObject();</span>
+<span class="fc" id="L163">        entry.put(ctx.sysFieldJs.get(child.getLocalName()).toString(), child.getValue());</span>
+
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        if (attrCount == 2) {</span>
+<span class="fc" id="L166">            entry.put(MV_SEQUENCE, Integer.valueOf(child.getAttributeValue(&quot;m&quot;)));</span>
+<span class="fc" id="L167">            entry.put(SEQUENCE, Integer.valueOf(child.getAttributeValue(&quot;s&quot;)));</span>
+<span class="fc" id="L168">            return entry;</span>
+        }
+<span class="fc bfc" id="L170" title="All 2 branches covered.">        if (attrCount == 1) {</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">            if (child.getAttribute(&quot;m&quot;) == null) {</span>
+<span class="fc" id="L172">                entry.put(SEQUENCE, Integer.valueOf(child.getAttributeValue(&quot;s&quot;)));</span>
+<span class="fc" id="L173">                entry.put(MV_SEQUENCE, 1);</span>
+            } else {
+<span class="fc" id="L175">                entry.put(MV_SEQUENCE, Integer.valueOf(child.getAttributeValue(&quot;m&quot;)));</span>
+<span class="fc" id="L176">                entry.put(SEQUENCE, 1);</span>
+            }
+<span class="fc" id="L178">            return entry;</span>
+        }
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (attrCount == 0) {</span>
+<span class="fc" id="L181">            entry.put(MV_SEQUENCE, 1);</span>
+<span class="fc" id="L182">            entry.put(SEQUENCE, 1);</span>
+<span class="fc" id="L183">            return entry;</span>
+        }
+<span class="nc" id="L185">        return new com.alibaba.fastjson2.JSONObject();</span>
+    }
+
+    private void putLocalRefField(com.alibaba.fastjson2.JSONObject jsonObject, Elements children, int i, Element current, ProcessorContext ctx) {
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        if (current.getAttributeCount() == 0) {</span>
+<span class="fc" id="L190">            current.addAttribute(new Attribute(&quot;m&quot;, &quot;1&quot;));</span>
+        }
+<span class="fc" id="L192">        String localRefKey = &quot;m&quot; + current.getAttributeValue(&quot;m&quot;);</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">        if (&quot;S&quot;.equals(ctx.usrTypeFieldJs.get(localRefKey).toString())) {</span>
+<span class="fc" id="L194">            jsonObject.put(ctx.usrFieldJs.get(localRefKey).toString(), current.getValue());</span>
+<span class="fc" id="L195">            return;</span>
+        }
+
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        if (current.getAttribute(&quot;s&quot;) == null) {</span>
+<span class="fc" id="L199">            putLocalRefCollection(jsonObject, current, ctx, 1);</span>
+<span class="fc" id="L200">            return;</span>
+        }
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        if (i &gt; 0 &amp;&amp; Integer.valueOf(children.get(i - 1).getAttributeValue(&quot;m&quot;))</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">                .equals(Integer.valueOf(current.getAttributeValue(&quot;m&quot;)))) {</span>
+<span class="fc" id="L204">            return;</span>
+        }
+<span class="fc" id="L206">        putLocalRefCollection(jsonObject, current, ctx, Integer.valueOf(current.getAttributeValue(&quot;s&quot;)));</span>
+<span class="fc" id="L207">    }</span>
+
+    private void putLocalRefCollection(com.alibaba.fastjson2.JSONObject jsonObject, Element current, ProcessorContext ctx, int sequence) {
+<span class="fc" id="L210">        List&lt;com.alibaba.fastjson2.JSONObject&gt; localRefMult = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L211">        com.alibaba.fastjson2.JSONObject hash = new com.alibaba.fastjson2.JSONObject();</span>
+<span class="fc" id="L212">        String localRefKey = &quot;m&quot; + current.getAttributeValue(&quot;m&quot;);</span>
+<span class="fc" id="L213">        hash.put(ctx.usrFieldJs.get(localRefKey).toString(), current.getValue());</span>
+<span class="fc" id="L214">        hash.put(SEQUENCE, sequence);</span>
+<span class="fc" id="L215">        localRefMult.add(hash);</span>
+<span class="fc" id="L216">        jsonObject.put(ctx.usrFieldJs.get(localRefKey).toString(), localRefMult);</span>
+<span class="fc" id="L217">    }</span>
+
+    private static final class ProcessorContext {
+        private final JSONObject sysFieldJs;
+        private final JSONObject sysTypeFieldJs;
+        private final JSONObject usrFieldJs;
+        private final JSONObject usrTypeFieldJs;
+        private final String local;
+
+        private ProcessorContext(
+                JSONObject sysFieldJs,
+                JSONObject sysTypeFieldJs,
+                JSONObject usrFieldJs,
+                JSONObject usrTypeFieldJs,
+<span class="fc" id="L231">                String local) {</span>
+<span class="fc" id="L232">            this.sysFieldJs = sysFieldJs;</span>
+<span class="fc" id="L233">            this.sysTypeFieldJs = sysTypeFieldJs;</span>
+<span class="fc" id="L234">            this.usrFieldJs = usrFieldJs;</span>
+<span class="fc" id="L235">            this.usrTypeFieldJs = usrTypeFieldJs;</span>
+<span class="fc" id="L236">            this.local = local;</span>
+<span class="fc" id="L237">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

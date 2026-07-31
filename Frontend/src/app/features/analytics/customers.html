@@ -1,0 +1,187 @@
+<!-- ═══ En-tête : la question métier de la page ═══ -->
+<header class="page-head">
+  <div>
+    <h1 class="page-title">{{ 'analytics.customers.title' | translate }}</h1>
+    <p class="page-subtitle ana-question">{{ 'analytics.customers.question' | translate }}</p>
+  </div>
+
+  <div class="ana-filters">
+    @if (years().length > 0) {
+      <p-select
+        [options]="yearOptions()"
+        [ngModel]="selectedYear()"
+        (ngModelChange)="onYearChange($event)"
+        optionLabel="label" optionValue="value"
+        [pTooltip]="'analytics.customers.filter.acquisitionYear' | translate" />
+    }
+    <p-button icon="pi pi-refresh" [rounded]="true" [text]="true"
+              [loading]="loading()" (onClick)="load()"
+              pTooltip="{{ 'common.refresh' | translate }}" />
+  </div>
+</header>
+
+<app-analytics-tabs />
+
+@if (error()) {
+  <div class="surface-card error-panel">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ 'common.loadError' | translate }}</span>
+    <p-button [label]="'common.retry' | translate" icon="pi pi-refresh"
+              severity="secondary" (onClick)="load()" />
+  </div>
+}
+
+<!-- ═══ Panneau « à débloquer » ═══ -->
+@if (!loading() && enrichmentNeeded()) {
+  <div class="surface-card ana-unlock">
+    <i class="pi pi-lock ana-unlock-icon"></i>
+    <div class="ana-unlock-body">
+      <div class="ana-unlock-title">{{ 'analytics.customers.unlock.title' | translate }}</div>
+      <div class="ana-unlock-hint">{{ 'analytics.customers.unlock.hint' | translate }}</div>
+      <div class="ana-unlock-cols">
+        @for (col of presentColumns(); track col) {
+          <span class="ana-col ok"><i class="pi pi-check-circle"></i> {{ col }}</span>
+        }
+        @for (col of missingColumns(); track col) {
+          <span class="ana-col missing"><i class="pi pi-lock"></i> {{ col }}</span>
+        }
+      </div>
+    </div>
+    <p-button [label]="'analytics.flows.unlock.action' | translate"
+              icon="pi pi-database" severity="secondary" [outlined]="true"
+              routerLink="/schema" />
+  </div>
+}
+
+<!-- ═══ Insights ═══ -->
+@if (leaderInsight(); as leader) {
+  <section class="ana-insights">
+    <div class="ana-leader">
+      <div class="ana-leader-head">
+        <i class="pi pi-star-fill"></i>
+        <span>{{ leader.titleKey | translate }}</span>
+      </div>
+      <div class="ana-leader-value">{{ leader.value }}</div>
+      <div class="ana-leader-detail">{{ leader.detailKey ? (leader.detailKey | translate:leader.params) : leader.detail }}</div>
+    </div>
+
+    @for (ins of otherInsights(); track ins.type) {
+      <div class="surface-card ana-insight">
+        <i class="pi" [class.pi-chart-pie]="ins.type === 'CONCENTRATION'"
+                      [class.pi-bolt]="ins.type === 'PIC_ACTIVITE'"></i>
+        <div>
+          <div class="ana-insight-title">{{ ins.titleKey | translate }}</div>
+          <div class="ana-insight-value">{{ ins.value }}</div>
+          <div class="ana-insight-detail">{{ ins.detailKey ? (ins.detailKey | translate:ins.params) : ins.detail }}</div>
+        </div>
+      </div>
+    }
+  </section>
+}
+
+<!-- ═══ KPIs ═══ -->
+<section class="grid-kpi">
+  @for (kpi of cards(); track kpi.key) {
+    <app-kpi-card [kpi]="kpi" />
+  } @empty {
+    @for (i of [1,2,3,4]; track i) {
+      <div class="surface-card skeleton"></div>
+    }
+  }
+</section>
+
+<!-- ═══ Ligne 1 : démographie (fonctionne dès aujourd'hui) ═══ -->
+<section class="grid-charts">
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.customers.chart.histogramTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else if (histogram().length === 0) {
+      <div class="empty-state">{{ 'analytics.empty.pyramid' | translate }}</div>
+    }
+    @else { <div echarts [options]="histogramOptions()" class="chart"></div> }
+  </div>
+
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.customers.chart.generationsTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else if (generations().length === 0) {
+      <div class="empty-state">{{ 'analytics.empty.pyramid' | translate }}</div>
+    }
+    @else { <div echarts [options]="generationsOptions()" class="chart"></div> }
+  </div>
+</section>
+
+<!-- ═══ Ligne 2 : acquisition + segmentation (après enrichissement) ═══ -->
+<section class="grid-charts">
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.customers.chart.acquisitionTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else if (!hasAcquisition()) {
+      <div class="empty-state locked">
+        <i class="pi pi-lock"></i>
+        {{ 'analytics.customers.empty.acquisition' | translate }}
+      </div>
+    }
+    @else if (newMonthly().length === 0) {
+      <div class="empty-state">{{ 'common.noData' | translate }}</div>
+    }
+    @else { <div echarts [options]="acquisitionOptions()" class="chart"></div> }
+  </div>
+
+  <div class="surface-card">
+    <div class="ana-card-head">
+      <h3 class="card-title">{{ 'analytics.customers.chart.breakdownTitle' | translate }}</h3>
+      @if (dimensions().length > 1) {
+        <p-selectButton
+          [options]="dimensionOptions()"
+          [ngModel]="selectedDimension()"
+          (ngModelChange)="onDimensionChange($event)"
+          optionLabel="label" optionValue="value" size="small" />
+      }
+    </div>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else if (dimensions().length === 0) {
+      <div class="empty-state locked">
+        <i class="pi pi-lock"></i>
+        {{ 'analytics.customers.empty.breakdown' | translate }}
+      </div>
+    }
+    @else if (breakdown().length === 0) {
+      <div class="empty-state">{{ 'common.noData' | translate }}</div>
+    }
+    @else { <div echarts [options]="breakdownOptions()" class="chart"></div> }
+  </div>
+</section>
+
+<!-- ═══ Tableau : générations avec barres de part (fonctionne dès aujourd'hui) ═══ -->
+<section class="grid-charts">
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.customers.table.title' | translate }}</h3>
+    <p-table [value]="generations()" [loading]="loading()" styleClass="p-datatable-sm">
+      <ng-template #header>
+        <tr>
+          <th>{{ 'analytics.customers.table.generation' | translate }}</th>
+          <th class="num">{{ 'analytics.customers.table.clients' | translate }}</th>
+          <th>{{ 'analytics.customers.table.share' | translate }}</th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-g>
+        <tr>
+          <td>{{ g.label }}</td>
+          <td class="num">{{ g.value | number }}</td>
+          <td>
+            <div class="ana-share">
+              <div class="ana-share-bar">
+                <div class="ana-share-fill" [style.width.%]="g.pct"></div>
+              </div>
+              <span class="ana-share-pct">{{ g.pct | number:'1.0-1' }} %</span>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr><td colspan="3" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+      </ng-template>
+    </p-table>
+  </div>
+</section>

@@ -1,0 +1,78 @@
+<header class="page-head">
+  <h1 class="page-title">{{ 'schema.title' | translate }}</h1>
+  <p-button icon="pi pi-refresh" [text]="true" [rounded]="true"
+            [loading]="loading()" (onClick)="load()" />
+</header>
+
+<p-tabs value="0">
+  <p-tablist>
+    <p-tab value="0">{{ 'schema.summaryTab' | translate }}</p-tab>
+    <p-tab value="1">{{ 'schema.auditTab' | translate }}</p-tab>
+  </p-tablist>
+  <p-tabpanels>
+
+    <p-tabpanel value="0">
+      <div class="surface-card page-card">
+        <p-table [value]="summary()" [loading]="loading()" [paginator]="true" [rows]="15" size="small">
+          <ng-template #header>
+            <tr>
+              <th>{{ 'recon.table' | translate }}</th>
+              <th class="num">{{ 'schema.totalCols' | translate }}</th>
+              <th class="num">{{ 'schema.enabledCols' | translate }}</th>
+              <th class="num">{{ 'schema.indexedCols' | translate }}</th>
+              <th class="num">{{ 'schema.mvCols' | translate }}</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-t>
+            <tr>
+              <td class="mono">{{ t.tableName }}</td>
+              <td class="num">{{ t.totalColumns }}</td>
+              <td class="num">{{ t.enabledColumns }}</td>
+              <td class="num">{{ t.indexedColumns }}</td>
+              <td class="num">{{ t.mvColumns }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabpanel>
+
+    <p-tabpanel value="1">
+      <div class="surface-card page-card">
+        <p-table [value]="audit()" [paginator]="true" [rows]="15" size="small">
+          <ng-template #header>
+            <tr>
+              <th>{{ 'recon.table' | translate }}</th>
+              <th>{{ 'schema.column' | translate }}</th>
+              <th>{{ 'schema.type' | translate }}</th>
+              <th>{{ 'schema.enabledChange' | translate }}</th>
+              <th>{{ 'schema.indexedChange' | translate }}</th>
+              <th>{{ 'schema.updatedBy' | translate }}</th>
+              <th>{{ 'schema.updatedOn' | translate }}</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-a>
+            <tr>
+              <td class="mono">{{ a.sourceTableName }}</td>
+              <td class="mono">{{ a.sourceColumnName }}</td>
+              <td>{{ a.sourceDataType }}</td>
+              <td>
+                @if (a.oldSourceEnabled !== a.newSourceEnabled) {
+                  <p-tag [value]="a.oldSourceEnabled + ' → ' + a.newSourceEnabled"
+                         [severity]="a.newSourceEnabled === 1 ? 'success' : 'warn'" />
+                } @else { — }
+              </td>
+              <td>
+                @if (a.oldSourceIndexed !== a.newSourceIndexed) {
+                  <p-tag [value]="a.oldSourceIndexed + ' → ' + a.newSourceIndexed" severity="info" />
+                } @else { — }
+              </td>
+              <td>{{ a.updatedBy ?? '—' }}</td>
+              <td>{{ a.updatedOn | date:'dd/MM/yy HH:mm' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabpanel>
+
+  </p-tabpanels>
+</p-tabs>

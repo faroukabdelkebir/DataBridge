@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExtractorApplication.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor</a> &gt; <span class="el_source">ExtractorApplication.java</span></div><h1>ExtractorApplication.java</h1><pre class="source lang-java linenums">package com.t24extractor;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.TimeZone;
+
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+/**
+ * Point d'entrée de l'extracteur T24.
+ *
+ * &lt;p&gt;Au démarrage, le fuseau est forcé à GMT+1 : les dates T24 sont manipulées
+ * sans zone, et un décalage déplacerait la frontière de journée d'extraction.
+ *
+ * &lt;p&gt;Chaque instance s'enregistre auprès du registre de services sous un nom
+ * horodaté unique, plusieurs extracteurs pouvant tourner de front.
+ *
+ * @see com.t24extractor.configuration.BatchConfiguration
+ */
+@EnableDiscoveryClient
+@SpringBootApplication
+@EnableScheduling
+<span class="nc" id="L31">public class ExtractorApplication</span>
+{
+	/**
+	 * @param args arguments de ligne de commande, complétés par le nom
+	 *             d'instance généré
+	 */
+	public static void main(String[] args)
+	{
+<span class="nc" id="L39">		TimeZone timezone = TimeZone.getTimeZone(&quot;GMT+1&quot;);</span>
+<span class="nc" id="L40">		TimeZone.setDefault(timezone);</span>
+
+<span class="nc" id="L42">		String appNameArg = generateAppNameArgument();</span>
+		
+<span class="nc" id="L44">		List&lt;String&gt; argsList = new ArrayList&lt;&gt;(Arrays.asList(args));</span>
+<span class="nc" id="L45">		argsList.add(appNameArg);</span>
+		
+<span class="nc" id="L47">		String[] newArgs = argsList.toArray(new String[argsList.size()]) ;</span>
+
+<span class="nc" id="L49">		SpringApplication.run(ExtractorApplication.class, newArgs) ;</span>
+<span class="nc" id="L50">	}</span>
+	
+	/***************************************************
+	 * 
+	 * 	Generate application name dynamically
+	 *  to be registered in the monitor.
+	 * 
+	 * 	@return generated name.
+	 * 
+	 ***************************************************/
+	
+	private static String generateAppNameArgument() 
+	{
+<span class="fc" id="L63">		String argument = &quot;--spring.application.name=Extractor-&quot;;</span>
+
+<span class="fc" id="L65">		LocalDateTime localTime = LocalDateTime.now();</span>
+<span class="fc" id="L66">		DateTimeFormatter format = DateTimeFormatter.ofPattern(&quot;HH-mm-ss&quot;);</span>
+
+<span class="fc" id="L68">		String time = localTime.format(format);</span>
+<span class="fc" id="L69">		int nano = localTime.atZone(ZoneId.systemDefault()).getNano();</span>
+
+<span class="fc" id="L71">		argument = argument + time + &quot;-&quot; + nano;</span>
+
+<span class="fc" id="L73">		return (argument);</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

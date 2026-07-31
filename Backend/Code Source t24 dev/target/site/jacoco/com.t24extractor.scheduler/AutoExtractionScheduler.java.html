@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AutoExtractionScheduler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.scheduler</a> &gt; <span class="el_source">AutoExtractionScheduler.java</span></div><h1>AutoExtractionScheduler.java</h1><pre class="source lang-java linenums">package com.t24extractor.scheduler;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.batch.core.launch.JobRestartException;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static com.t24extractor.commons.Constants.AA_BILL_DETAILS;
+import static com.t24extractor.commons.Constants.CUSTOMER;
+import static com.t24extractor.commons.Constants.FUNDS_TRANSFER_HIS;
+import static com.t24extractor.commons.Constants.RUN_ID;
+import static com.t24extractor.commons.Constants.SELECT_SCHEDULED_BATCHES;
+
+/**
+ * Déclenche les extractions dont l'heure de planification est atteinte.
+ *
+ * &lt;p&gt;Plutôt qu'une expression cron figée, la planification est lue en base à
+ * chaque tour : elle reste modifiable depuis l'IHM sans redéploiement. Le
+ * scanner s'exécute à intervalle régulier ({@code extractor.scheduler.poll-ms})
+ * et lance les extractions actives dont l'heure est passée.
+ *
+ * &lt;p&gt;Deux garde-fous évitent les doublons : une extraction déjà lancée le jour
+ * même est ignorée, et une extraction dont le job tourne encore n'est pas
+ * relancée. La mémoire des lancements est en revanche conservée en mémoire
+ * vive : un redémarrage en cours de journée peut donc provoquer une seconde
+ * exécution.
+ *
+ * &lt;p&gt;Une heure mal formée est signalée dans les journaux et ignorée, sans
+ * interrompre le traitement des autres lignes.
+ */
+@Component
+@RefreshScope
+<span class="fc" id="L52">@Slf4j</span>
+public class AutoExtractionScheduler {
+
+    private final JdbcTemplate jdbcBI;
+    private final JobOperator jobOperator;
+    private final JobRepository jobRepository;
+    private final Job customerJob;
+    private final Job ftJob;
+    private final Job billDetailsJob;
+    private final Job mainJob;
+
+<span class="fc" id="L63">    private final Map&lt;String, LocalDate&gt; lastRunByBatch = new ConcurrentHashMap&lt;&gt;();</span>
+
+    public AutoExtractionScheduler(
+            @Qualifier(&quot;jdbcBI&quot;) JdbcTemplate jdbcBI,
+            JobOperator jobOperator,
+            JobRepository jobRepository,
+            @Qualifier(&quot;customer&quot;) Job customerJob,
+            @Qualifier(&quot;ftHis&quot;) Job ftJob,
+            @Qualifier(&quot;billDetails&quot;) Job billDetailsJob,
+            @Qualifier(&quot;t24Job&quot;) Job mainJob
+<span class="fc" id="L73">    ) {</span>
+<span class="fc" id="L74">        this.jdbcBI = jdbcBI;</span>
+<span class="fc" id="L75">        this.jobOperator = jobOperator;</span>
+<span class="fc" id="L76">        this.jobRepository = jobRepository;</span>
+<span class="fc" id="L77">        this.customerJob = customerJob;</span>
+<span class="fc" id="L78">        this.ftJob = ftJob;</span>
+<span class="fc" id="L79">        this.billDetailsJob = billDetailsJob;</span>
+<span class="fc" id="L80">        this.mainJob = mainJob;</span>
+<span class="fc" id="L81">    }</span>
+
+    /**
+     * Passe en revue les extractions planifiées et lance celles qui sont dues.
+     *
+     * &lt;p&gt;Appelée automatiquement à intervalle fixe. Une extraction est lancée si
+     * son heure est atteinte et qu'elle n'a pas déjà tourné dans la journée.
+     *
+     * @throws IllegalStateException si un job dû ne peut pas être démarré
+     */
+    @Scheduled(fixedDelayString = &quot;${extractor.scheduler.poll-ms:60000}&quot;)
+    public void runDynamicScheduler() {
+<span class="fc" id="L93">        LocalTime now = LocalTime.now().withSecond(0).withNano(0);</span>
+<span class="fc" id="L94">        LocalDate today = LocalDate.now();</span>
+
+<span class="fc" id="L96">        List&lt;Map&lt;String, Object&gt;&gt; configs = jdbcBI.queryForList(SELECT_SCHEDULED_BATCHES);</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        for (Map&lt;String, Object&gt; row : configs) {</span>
+<span class="fc" id="L98">            String batchId = String.valueOf(row.get(&quot;id&quot;));</span>
+<span class="fc" id="L99">            String schedulerTime = String.valueOf(row.get(&quot;scheduler_time&quot;));</span>
+<span class="fc" id="L100">            LocalTime scheduledTime = parseSchedulerTime(schedulerTime, batchId);</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">            if (scheduledTime == null) {</span>
+<span class="fc" id="L102">                continue;</span>
+            }
+
+<span class="fc bfc" id="L105" title="All 2 branches covered.">            if (!now.isBefore(scheduledTime)</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">                    &amp;&amp; !today.equals(lastRunByBatch.get(batchId))) {</span>
+<span class="fc" id="L107">                launchJobForBatch(batchId, today);</span>
+            }
+<span class="fc" id="L109">        }</span>
+<span class="fc" id="L110">    }</span>
+
+    private LocalTime parseSchedulerTime(String schedulerTime, String batchId) {
+        try {
+<span class="fc" id="L114">            return LocalTime.parse(schedulerTime).withSecond(0).withNano(0);</span>
+<span class="fc" id="L115">        } catch (DateTimeParseException ex) {</span>
+<span class="fc" id="L116">            log.warn(&quot;scheduler_time invalide pour {}: {}&quot;, batchId, schedulerTime);</span>
+<span class="fc" id="L117">            return null;</span>
+        }
+    }
+
+    private void launchJobForBatch(String batchId, LocalDate today) {
+<span class="fc" id="L122">        Job targetJob = resolveJob(batchId);</span>
+<span class="fc" id="L123">        String jobName = targetJob.getName();</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        if (!jobRepository.findRunningJobExecutions(jobName).isEmpty()) {</span>
+<span class="fc" id="L125">            log.info(&quot;Job {} déjà en cours, skip scheduler pour {}&quot;, jobName, batchId);</span>
+<span class="fc" id="L126">            return;</span>
+        }
+
+<span class="fc" id="L129">        JobParameters jobParameters = new JobParametersBuilder()</span>
+<span class="fc" id="L130">                .addString(RUN_ID, UUID.randomUUID().toString())</span>
+<span class="fc" id="L131">                .addLong(&quot;time&quot;, System.currentTimeMillis())</span>
+<span class="fc" id="L132">                .toJobParameters();</span>
+        try {
+<span class="fc" id="L134">            jobOperator.start(targetJob, jobParameters);</span>
+<span class="fc" id="L135">            lastRunByBatch.put(batchId, today);</span>
+<span class="fc" id="L136">            log.info(&quot;Extraction planifiée lancée pour {} à {}&quot;, batchId, LocalTime.now());</span>
+<span class="fc" id="L137">        } catch (JobInstanceAlreadyCompleteException</span>
+                 | JobExecutionAlreadyRunningException
+                 | InvalidJobParametersException
+                 | JobRestartException e) {
+<span class="fc" id="L141">            throw new IllegalStateException(&quot;Unable to start scheduled job for batch &quot; + batchId, e);</span>
+<span class="fc" id="L142">        }</span>
+<span class="fc" id="L143">    }</span>
+
+    private Job resolveJob(String batchId) {
+<span class="fc bfc" id="L146" title="All 4 branches covered.">        return switch (batchId) {</span>
+<span class="fc" id="L147">            case CUSTOMER -&gt; customerJob;</span>
+<span class="fc" id="L148">            case FUNDS_TRANSFER_HIS -&gt; ftJob;</span>
+<span class="fc" id="L149">            case AA_BILL_DETAILS -&gt; billDetailsJob;</span>
+<span class="fc" id="L150">            default -&gt; mainJob;</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

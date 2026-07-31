@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SqlOps.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.bi_sync.ops</a> &gt; <span class="el_source">SqlOps.java</span></div><h1>SqlOps.java</h1><pre class="source lang-java linenums">package com.t24extractor.bi_sync.ops;
+
+
+import com.t24extractor.model.MetaDataTable;
+import com.t24extractor.model.SchemaSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.*;
+
+import static com.t24extractor.commons.Constants.COUNT_ALL_ROWS_TPL;
+import static com.t24extractor.commons.Constants.DROP_TABLE_TPL;
+import static com.t24extractor.commons.Constants.INSERT_METADATA_IF_ABSENT_TPL;
+import static com.t24extractor.commons.Constants.TRUNCATE_TABLE_TPL;
+import static com.t24extractor.commons.Constants.UPDATE_TABLE_TPL;
+
+/**
+ * Contrat de génération SQL, indépendant du SGBD.
+ *
+ * &lt;p&gt;Regroupe ce qui ne dépend pas du dialecte (placeholders, typage ODS →
+ * VARCHAR, colonnes obligatoires) et délègue le reste aux implémentations.
+ *
+ * &lt;p&gt;Le SQL produit ici est un livrable : l'échappement des identifiants,
+ * l'ordre des colonnes et le nombre de paramètres conditionnent directement
+ * l'intégrité des données insérées.
+ *
+ * @see SqlServerOps
+ * @see OracleOps
+ */
+<span class="fc" id="L30">@Slf4j</span>
+<span class="fc" id="L31">public abstract class SqlOps {</span>
+
+    /**
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table cible
+     * @return les colonnes métier existantes, hors colonnes techniques
+     */
+    public abstract Set&lt;String&gt; destColumns(JdbcTemplate jdbcTemplate, String table);
+
+    /**
+     * Crée la table de dépôt brut associée, si elle n'existe pas.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table cible, préfixée à la création
+     */
+    public abstract void createRawTable(JdbcTemplate jdbcTemplate, String table);
+
+    /**
+     * @param table table à tester
+     * @return un fragment SQL conditionnant l'instruction suivante à l'existence
+     *         de la table
+     */
+    public abstract String existsQuery(String table);
+
+    /**
+     * Crée la table cible avec ses colonnes techniques et métier, si elle
+     * n'existe pas déjà.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table cible
+     * @param set          colonnes métier à créer
+     */
+    public abstract void createDestTable(JdbcTemplate jdbcTemplate, String table, Set&lt;SchemaSource&gt; set);
+
+    /**
+     * Crée la table cible réduite à ses seules colonnes techniques.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table cible
+     */
+    public abstract void createDefaultDestTable(JdbcTemplate jdbcTemplate, String table);
+
+    /**
+     * @param table table cible
+     * @param set   colonnes métier, dans l'ordre d'insertion
+     * @return l'INSERT paramétré, colonnes techniques comprises
+     */
+    public abstract String insertConstruction(String table, Set&lt;SchemaSource&gt; set);
+
+    /**
+     * @param table table cible
+     * @param set   colonnes à mettre à jour
+     * @return un MERGE rapprochant la table de sa version de travail sur {@code _id}
+     */
+    public abstract String mergeConstruction(String table, Set&lt;SchemaSource&gt; set);
+
+    /**
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table cible
+     * @param column       colonne à ajouter
+     * @param dataType     type ODS, converti en type SQL
+     */
+    public abstract void addCol(JdbcTemplate jdbcTemplate, String table, String column, String dataType);
+
+    /**
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table cible
+     * @param col          colonne à supprimer
+     */
+    public abstract void dropCol(JdbcTemplate jdbcTemplate, String table, String col);
+
+    /**
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table à vider
+     */
+    public void truncateTable(JdbcTemplate jdbcTemplate, String table) {
+<span class="fc" id="L107">        jdbcTemplate.execute(String.format(TRUNCATE_TABLE_TPL, escapeTableName(table)));</span>
+<span class="fc" id="L108">    }</span>
+
+    /**
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table à supprimer
+     */
+    public void dropTable(JdbcTemplate jdbcTemplate, String table) {
+<span class="fc" id="L115">        jdbcTemplate.execute(String.format(DROP_TABLE_TPL, escapeTableName(table)));</span>
+<span class="fc" id="L116">    }</span>
+
+    /**
+     * @param set colonnes métier
+     * @return les définitions {@code &quot;colonne type&quot;} pour un CREATE TABLE
+     */
+    public Set&lt;String&gt; fieldsOnly(Set&lt;SchemaSource&gt; set) {
+<span class="fc" id="L123">        Set&lt;String&gt; tset = new LinkedHashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        for (SchemaSource bi : set) {</span>
+<span class="fc" id="L125">            String obj = String.join(&quot; &quot;, escapeColumn(bi.getColumnName()), getDataType(bi.getDataType()));</span>
+<span class="fc" id="L126">            tset.add(obj);</span>
+<span class="fc" id="L127">        }</span>
+<span class="fc" id="L128">        return tset;</span>
+    }
+
+
+    /**
+     * Liste des colonnes de l'INSERT, colonnes techniques en tête.
+     *
+     * &lt;p&gt;L'ordre fait foi : c'est celui dans lequel
+     * {@link com.t24extractor.preparedstatementsetter.ItemPrepStmtSetter}
+     * positionnera les paramètres.
+     *
+     * @param set colonnes métier
+     * @return {@code _id}, {@code ORIGINAL_ID}, puis les colonnes métier
+     */
+    public List&lt;String&gt; fieldsToInsert(Set&lt;SchemaSource&gt; set) {
+<span class="fc" id="L143">        List&lt;String&gt; mandatoryFields = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L144">        mandatoryFields.add(&quot;_id&quot;);</span>
+<span class="fc" id="L145">        mandatoryFields.add(&quot;ORIGINAL_ID&quot;);</span>
+
+<span class="fc" id="L147">        log.info(&quot;*****************************************&quot;);</span>
+<span class="fc" id="L148">        log.info(&quot;Info {} &quot;,set</span>
+<span class="fc" id="L149">                .stream()</span>
+<span class="fc" id="L150">                .map(SchemaSource::getColumnName)</span>
+<span class="fc" id="L151">                .toList());</span>
+
+<span class="fc" id="L153">        mandatoryFields.addAll(set</span>
+<span class="fc" id="L154">                .stream()</span>
+<span class="fc" id="L155">                .map(SchemaSource::getColumnName)</span>
+<span class="fc" id="L156">                .toList());</span>
+<span class="fc" id="L157">        return mandatoryFields;</span>
+    }
+
+    /**
+     * Variante échappée de {@link #fieldsToInsert(Set)}, pour insertion directe
+     * dans le SQL.
+     *
+     * @param set colonnes métier
+     * @return les mêmes colonnes, avec leurs délimiteurs
+     */
+    public List&lt;String&gt; mssqlfieldsToInsert(Set&lt;SchemaSource&gt; set) {
+<span class="fc" id="L168">        List&lt;String&gt; mandatoryFields = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L169">        mandatoryFields.add(escapeColumn(&quot;_id&quot;));</span>
+<span class="fc" id="L170">        mandatoryFields.add(escapeColumn(&quot;ORIGINAL_ID&quot;));</span>
+<span class="fc" id="L171">        mandatoryFields.addAll(set</span>
+<span class="fc" id="L172">                .stream()</span>
+<span class="fc" id="L173">                .map(c -&gt; escapeColumn(c.getColumnName()))</span>
+<span class="fc" id="L174">                .toList());</span>
+<span class="fc" id="L175">        return mandatoryFields;</span>
+    }
+
+    /**
+     * @param fieldsNum nombre de colonnes
+     * @return autant de {@code ?} séparés par des virgules ; jamais vide
+     */
+    public String placeHolders(int fieldsNum) {
+<span class="fc" id="L183">        return &quot;?,&quot;.repeat(Math.max(0, fieldsNum - 1)) +</span>
+                &quot;?&quot;;
+    }
+
+    /**
+     * Traduit un type ODS en type SQL.
+     *
+     * &lt;p&gt;Tout est stocké en texte : la conversion en types métier est faite en
+     * aval, dans l'entrepôt. Seule distinction, les champs multivalués — dont
+     * le type contient {@code StringMAX} — reçoivent une capacité illimitée car
+     * ils portent un tableau JSON.
+     *
+     * @param ssdataType type ODS issu du STANDARD.SELECTION
+     * @return le type SQL correspondant
+     */
+    public String getDataType(String ssdataType) {
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (ssdataType.contains(&quot;StringMAX&quot;)) {</span>
+<span class="fc" id="L200">            return &quot; VARCHAR(MAX) &quot;;</span>
+        }
+<span class="fc" id="L202">        return &quot;VARCHAR(8000)&quot;;</span>
+    }
+
+
+
+    /**
+     * Teste l'&lt;b&gt;absence&lt;/b&gt; d'un index.
+     *
+     * &lt;p&gt;Le nom est trompeur : la méthode renvoie {@code true} lorsque l'index
+     * n'existe &lt;i&gt;pas&lt;/i&gt;. C'est ce que consomme {@link #createIndex}.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param tableName    table portant l'index
+     * @param column       nom de l'index recherché
+     * @return {@code true} si l'index est absent
+     */
+    public abstract boolean existIndexQuery(JdbcTemplate jdbcTemplate, String tableName, String column);
+
+    /**
+     * @param column nom de colonne
+     * @return le nom délimité selon le dialecte
+     */
+    public abstract String escapeColumn(String column);
+
+    /**
+     * @param table nom de table
+     * @return le nom délimité selon le dialecte
+     */
+    public abstract String escapeTableName(String table);
+
+    /**
+     * Crée l'index s'il n'existe pas déjà.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param tableName    table à indexer
+     * @param column       colonne à indexer, qui donne aussi son nom à l'index
+     */
+    public abstract void createIndex(JdbcTemplate jdbcTemplate, String tableName, String column);
+
+    /**
+     * @param jdbcTemplate accès à la base cible
+     * @param column       nom de l'index à supprimer
+     */
+    public abstract void dropIndex(JdbcTemplate jdbcTemplate, String column);
+
+    /**
+     * Déclenche la normalisation des champs JSON par procédure stockée.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param tableName    table à normaliser
+     * @return le nombre de lignes traitées
+     */
+    public abstract int jsonNormalize(JdbcTemplate jdbcTemplate, String tableName);
+
+
+    /**
+     * Comptage plafonné, utilisé pour savoir si une table est simplement non vide
+     * sans en payer le comptage complet.
+     *
+     * @param jdbcTemplate accès à la base
+     * @param tableName    table à sonder
+     * @return le nombre de lignes, au plus cinq
+     */
+    public abstract Long countTopFive(JdbcTemplate jdbcTemplate, String tableName);
+
+
+    /**
+     * Comptage exact des lignes.
+     *
+     * &lt;p&gt;Implémentation de repli : les sous-classes la redéfinissent pour
+     * s'appuyer sur les statistiques du SGBD, bien moins coûteuses.
+     *
+     * @param jdbcTemplate accès à la base
+     * @param table        table à compter
+     * @return le nombre de lignes, ou {@code 0} en cas d'échec
+     */
+    public Long countAll(JdbcTemplate jdbcTemplate, String table) {
+<span class="nc" id="L279">        Long count = 0L;</span>
+        try {
+
+<span class="nc" id="L282">            count = jdbcTemplate.queryForObject(String.format(COUNT_ALL_ROWS_TPL, table), Long.class);</span>
+<span class="nc" id="L283">        } catch (Exception e) {</span>
+<span class="nc" id="L284">            log.error(&quot;Une erreur est survenue lors de l'exécution de la requete Count sur la table {}&quot;, table);</span>
+<span class="nc" id="L285">        }</span>
+<span class="nc" id="L286">        return count;</span>
+    }
+
+    /**
+     * Exécute un UPDATE composé dynamiquement.
+     *
+     * &lt;p&gt;Les valeurs sont concaténées telles quelles dans le SQL : les chaînes
+     * doivent donc être fournies déjà quotées par l'appelant.
+     *
+     * @param jdbcTemplate accès à la base cible
+     * @param table        table à mettre à jour
+     * @param cols         colonnes et valeurs, dans l'ordre d'itération fourni
+     * @param condition    clause WHERE, sans le mot-clé
+     */
+    public void updateQuery(JdbcTemplate jdbcTemplate, String table, Map&lt;String, Object&gt; cols, String condition) {
+<span class="fc" id="L301">        StringBuilder assignments = new StringBuilder();</span>
+<span class="fc" id="L302">        Iterator&lt;Map.Entry&lt;String, Object&gt;&gt; it = cols.entrySet().iterator();</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">        while (it.hasNext()) {</span>
+<span class="fc" id="L304">            Map.Entry&lt;String, Object&gt; entry = it.next();</span>
+<span class="fc" id="L305">            assignments.append(entry.getKey()).append(&quot;=&quot;).append(entry.getValue());</span>
+
+<span class="fc bfc" id="L307" title="All 2 branches covered.">            if (it.hasNext()) {</span>
+<span class="fc" id="L308">                assignments.append(&quot;, &quot;);</span>
+            }
+<span class="fc" id="L310">        }</span>
+<span class="fc" id="L311">        jdbcTemplate.batchUpdate(String.format(UPDATE_TABLE_TPL, table, assignments, condition));</span>
+<span class="fc" id="L312">    }</span>
+
+    /**
+     * Enregistre les champs multivalués dans le registre des métadonnées, sans
+     * doublon.
+     *
+     * @param jdbcTemplate      accès à la base cible
+     * @param metaDataTableList champs multivalués à déclarer
+     */
+    public void save(JdbcTemplate jdbcTemplate, List&lt;MetaDataTable&gt; metaDataTableList) {
+
+
+        /* IF EXISTS(SELECT * from iplog Where [date]='20120101' and sip=1 and dip=2 and port=80)
+         BEGIN
+                 UPDATE
+         iplog
+                 SET
+         t.size=t.size+1
+         WHERE
+                 [date]='20120101' and sip=1 and dip=2 and port=80
+         END
+                 ELSE
+         BEGIN
+         INSERT INTO iplog VALUES ('20120101',1,2,80,1)
+         END */
+
+
+<span class="fc bfc" id="L339" title="All 2 branches covered.">        for (MetaDataTable meta : metaDataTableList) {</span>
+<span class="fc" id="L340">            jdbcTemplate.batchUpdate(String.format(INSERT_METADATA_IF_ABSENT_TPL,</span>
+<span class="fc" id="L341">                    meta.tablename(), meta.multivalueFields(), meta.localref()));</span>
+<span class="fc" id="L342">        }</span>
+
+
+
+<span class="fc" id="L346">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

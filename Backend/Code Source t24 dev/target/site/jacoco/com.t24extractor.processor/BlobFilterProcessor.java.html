@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BlobFilterProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.processor</a> &gt; <span class="el_source">BlobFilterProcessor.java</span></div><h1>BlobFilterProcessor.java</h1><pre class="source lang-java linenums">package com.t24extractor.processor;
+
+
+import org.jspecify.annotations.Nullable;
+import org.springframework.batch.infrastructure.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.HashMap;
+import java.util.HashSet;
+
+/**
+ * Équivalent de {@link XMLFilterProcessor} pour les tables lues en mode BLOB.
+ *
+ * &lt;p&gt;Écarte les lignes dont l'identifiant figure déjà dans la clé {@code IDS}
+ * du contexte de job.
+ */
+<span class="fc" id="L16">public class BlobFilterProcessor implements ItemProcessor&lt;HashMap&lt;String, Object&gt;, HashMap&lt;String, Object&gt;&gt;</span>
+{
+    @Value(&quot;#{jobExecutionContext['IDS']}&quot;)
+    HashSet&lt;String&gt; idsList;
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return la ligne, ou {@code null} pour l'exclure du chunk
+     */
+    @Override
+    public  @Nullable HashMap&lt; String, Object&gt; process(HashMap&lt;String, Object&gt; item) throws Exception
+    {
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (idsList.contains(item.get(&quot;_id&quot;)))</span>
+        {
+<span class="fc" id="L31">            return null;</span>
+        } 
+        else 
+        {
+<span class="fc" id="L35">            return item;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

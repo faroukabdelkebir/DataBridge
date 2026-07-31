@@ -1,0 +1,21 @@
+<div class="kpi-card surface-card">
+  <div class="kpi-head">
+    <div class="kpi-icon" [style.background]="kpi().color + '1a'" [style.color]="kpi().color">
+      <i [class]="kpi().icon"></i>
+    </div>
+    @if (hasDelta()) {
+      <span
+        class="kpi-delta"
+        [class.up]="isPositive()"
+        [class.down]="!isPositive()">
+        <i [class]="isPositive() ? 'pi pi-arrow-up' : 'pi pi-arrow-down'"></i>
+        {{ kpi().delta | number:'1.0-1' }}%
+      </span>
+    }
+  </div>
+
+  <div class="kpi-value">
+    {{ prefix() }}{{ kpi().value | number:'1.0-2' }}{{ suffix() }}
+  </div>
+  <div class="kpi-label">{{ kpi().label | translate }}</div>
+</div>

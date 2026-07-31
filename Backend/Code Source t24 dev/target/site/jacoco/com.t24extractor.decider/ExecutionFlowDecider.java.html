@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExecutionFlowDecider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.decider</a> &gt; <span class="el_source">ExecutionFlowDecider.java</span></div><h1>ExecutionFlowDecider.java</h1><pre class="source lang-java linenums">package com.t24extractor.decider;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.step.StepExecution;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.job.flow.FlowExecutionStatus;
+import org.springframework.batch.core.job.flow.JobExecutionDecider;
+
+/**
+ * Choisit la branche de traitement à emprunter après la préparation.
+ *
+ * &lt;p&gt;Le statut renvoyé est composé à partir du mode de stockage et du mode de
+ * chargement : {@code Manager}, {@code BLOB-Manager},
+ * {@code Incremental-ID-Manager} ou {@code BLOB-Incremental-ID-Manager}.
+ *
+ * &lt;p&gt;Cas particulier : si le comptage ({@code COUNT}) est nul, le statut
+ * {@code EXIT} termine le job sans lancer d'extraction.
+ *
+ * &lt;p&gt;Le type est lu en priorité dans le contexte d'exécution (où
+ * STANDARD.SELECTION a pu le corriger d'après TAFJ) et, à défaut, dans les
+ * paramètres du job.
+ */
+@StepScope
+<span class="fc" id="L26">public class ExecutionFlowDecider implements JobExecutionDecider</span>
+{
+<span class="fc" id="L28">	private static final Logger LOG = LoggerFactory.getLogger(ExecutionFlowDecider.class) ;</span>
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * @return le nom de la branche à suivre, ou {@code EXIT} s'il n'y a rien à extraire
+	 */
+	@Override
+	public FlowExecutionStatus decide(JobExecution jobExecution, StepExecution stepExecution)
+	{
+<span class="fc" id="L38">		StringBuilder flowExecutionStatus = new StringBuilder();</span>
+
+		String type;
+<span class="fc bfc" id="L41" title="All 2 branches covered.">		if (jobExecution.getExecutionContext().get(&quot;TYPE&quot;) != null) {</span>
+<span class="fc" id="L42">			type = jobExecution.getExecutionContext().getString(&quot;TYPE&quot;);</span>
+		} else {
+<span class="fc" id="L44">			type = jobExecution.getJobParameters().getString(&quot;Type&quot;, &quot;&quot;);</span>
+		}
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">		type = type == null ? &quot;&quot; : type;</span>
+
+<span class="fc" id="L48">		String chargement = jobExecution.getJobParameters().getString(&quot;Chargement&quot;, &quot;&quot;) ;</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">		chargement = chargement == null ? &quot;&quot; : chargement;</span>
+
+<span class="fc bfc" id="L51" title="All 2 branches covered.">		if (stepExecution.getJobExecution().getExecutionContext().getInt(&quot;COUNT&quot;) == 0) {</span>
+<span class="fc" id="L52">			return (new FlowExecutionStatus(&quot;EXIT&quot;));</span>
+		}
+<span class="fc bfc" id="L54" title="All 4 branches covered.">		if (type.contains(&quot;B&quot;) || type.contains(&quot;C&quot;))</span>
+		{
+<span class="fc" id="L56">			flowExecutionStatus.append(&quot;BLOB-&quot;);</span>
+		}
+		
+<span class="fc bfc" id="L59" title="All 2 branches covered.">		if (chargement.equals(&quot;Incremental-id&quot;))</span>
+		{
+<span class="fc" id="L61">			flowExecutionStatus.append(&quot;Incremental-ID-&quot;);</span>
+		}
+		
+<span class="fc" id="L64">		flowExecutionStatus.append(&quot;Manager&quot;);</span>
+
+
+
+
+<span class="fc" id="L69">		String executionStatus = flowExecutionStatus.toString() ;</span>
+		
+<span class="fc" id="L71">		LOG.trace(&quot;[ExecutionFlowDecider] executionStatus = {}&quot; , executionStatus);</span>
+<span class="fc" id="L72">		return(new FlowExecutionStatus(flowExecutionStatus.toString()));</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

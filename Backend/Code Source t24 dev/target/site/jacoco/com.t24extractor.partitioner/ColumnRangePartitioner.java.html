@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ColumnRangePartitioner.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.partitioner</a> &gt; <span class="el_source">ColumnRangePartitioner.java</span></div><h1>ColumnRangePartitioner.java</h1><pre class="source lang-java linenums">package com.t24extractor.partitioner;
+
+import org.springframework.batch.core.partition.Partitioner;
+import org.springframework.batch.infrastructure.item.ExecutionContext;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.HashMap;
+import java.util.Map;
+
+
+/**
+ * Découpe la lecture en plages contiguës de numéros de ligne.
+ *
+ * &lt;p&gt;Utilisé pour les tables lues au travers d'une vue, où chaque ligne porte un
+ * {@code rowNumber} : chaque worker reçoit les bornes {@code minValue} et
+ * {@code maxValue} de sa plage.
+ *
+ * &lt;p&gt;Suppose que le nombre total de lignes ait été publié sous la clé
+ * {@code COUNT}.
+ */
+<span class="fc" id="L20">public class ColumnRangePartitioner implements Partitioner</span>
+{
+
+    @Value(&quot;#{jobExecutionContext['COUNT']}&quot;)
+    int count;
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param gridSize nombre de workers souhaité
+     * @return une partition par plage ; la dernière est tronquée au nombre réel
+     *         de lignes
+     */
+    @Override
+    public Map&lt;String, ExecutionContext&gt; partition(int gridSize)
+    {
+<span class="fc" id="L36">        int min = 1;</span>
+<span class="fc" id="L37">        int max = count;</span>
+<span class="fc" id="L38">        int targetSize = (max - min) / gridSize + 1;</span>
+
+<span class="fc" id="L40">        Map&lt;String, ExecutionContext&gt; result = new HashMap&lt;&gt;();</span>
+        
+<span class="fc" id="L42">        int number = 0;</span>
+<span class="fc" id="L43">        int start = min;</span>
+<span class="fc" id="L44">        int end = start + targetSize - 1;</span>
+
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        while (start &lt;= max)</span>
+        {
+<span class="fc" id="L48">            ExecutionContext value = new ExecutionContext();</span>
+            
+<span class="fc" id="L50">            result.put(&quot;partition&quot; + number, value);</span>
+
+<span class="fc bfc" id="L52" title="All 2 branches covered.">            if (end &gt;= max)</span>
+            {
+<span class="fc" id="L54">                end = max;</span>
+            }
+            
+<span class="fc" id="L57">            value.putInt(&quot;minValue&quot;, start);</span>
+<span class="fc" id="L58">            value.putInt(&quot;maxValue&quot;, end);</span>
+            
+<span class="fc" id="L60">            start += targetSize;</span>
+<span class="fc" id="L61">            end += targetSize;</span>
+            
+<span class="fc" id="L63">            number++;</span>
+<span class="fc" id="L64">        }</span>
+
+<span class="fc" id="L66">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

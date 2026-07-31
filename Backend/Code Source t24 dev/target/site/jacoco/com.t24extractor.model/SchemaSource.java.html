@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SchemaSource.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.model</a> &gt; <span class="el_source">SchemaSource.java</span></div><h1>SchemaSource.java</h1><pre class="source lang-java linenums">package com.t24extractor.model;
+
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+import static com.t24extractor.commons.Constants.SCHEMA_SOURCE;
+
+
+/**
+ * Description d'une colonne extraite : son type ODS et son état d'activation.
+ *
+ * &lt;p&gt;SCHEMA_SOURCE est le référentiel qui décide, colonne par colonne, de ce
+ * qui est extrait. Une colonne désactivée reste déclarée mais n'entre ni dans
+ * la table BI, ni dans l'INSERT.
+ *
+ * @see com.t24extractor.bi_sync.tasklet.BISyncTasklet
+ * @see SchemaSourceAudit
+ */
+@Table(value = SCHEMA_SOURCE)
+@Data
+@AllArgsConstructor
+public class SchemaSource implements Persistable&lt;String&gt; {
+
+    @Id
+    String id;
+
+    @Column(&quot;table_name&quot;)
+    String tableName;
+
+    @Column(&quot;column_name&quot;)
+    String columnName;
+
+    @Column(&quot;datatype&quot;)
+    String dataType;
+
+    @Column(&quot;_enabled&quot;)
+    boolean enabled;
+
+    @Column(&quot;indexed&quot;)
+    boolean indexed;
+
+    @Column(&quot;ssTag&quot;)
+    String ssTag;
+
+    @Column(&quot;single_mult&quot;)
+    String singleMult;
+
+    @Column(&quot;local_ref&quot;)
+    boolean localRef;
+
+    @Override
+    public String getId() {
+<span class="fc" id="L58">        return id;</span>
+    }
+
+    /**
+     * Toujours {@code true} : la table est alimentée en ajout, ce qui force
+     * Spring Data JDBC à émettre un INSERT plutôt qu'un UPDATE.
+     *
+     * @return {@code true}
+     */
+    @Override
+    public boolean isNew() {
+<span class="fc" id="L69">        return true;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

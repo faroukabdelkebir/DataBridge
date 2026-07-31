@@ -1,0 +1,106 @@
+<header class="page-head">
+  <h1 class="page-title">{{ 'profile.title' | translate }}</h1>
+</header>
+
+<p-tabs value="0">
+  <p-tablist>
+    <p-tab value="0">{{ 'profile.infoTab' | translate }}</p-tab>
+    <p-tab value="1">{{ 'profile.securityTab' | translate }}</p-tab>
+    @if (isAdmin) { <p-tab value="2">{{ 'profile.auditTab' | translate }}</p-tab> }
+  </p-tablist>
+  <p-tabpanels>
+
+    <!-- ===== Informations ===== -->
+    <p-tabpanel value="0">
+      @if (user(); as u) {
+        <div class="surface-card page-card profile-info">
+          <p-avatar [label]="u.username.charAt(0).toUpperCase()" size="xlarge" shape="circle" />
+          <div class="profile-fields">
+            <div><span class="fl">{{ 'common.username' | translate }}</span><span class="mono">{{ u.username }}</span></div>
+            <div><span class="fl">{{ 'common.email' | translate }}</span><span>{{ u.email }}</span></div>
+            <div><span class="fl">{{ 'users.role' | translate }}</span><p-tag [value]="u.role" /></div>
+          </div>
+        </div>
+      }
+    </p-tabpanel>
+
+    <!-- ===== Sécurité ===== -->
+    <p-tabpanel value="1">
+      <div class="surface-card page-card" style="max-width: 30rem;">
+        <h3 class="card-title">{{ 'profile.changePwd' | translate }}</h3>
+        <form [formGroup]="pwdForm" (ngSubmit)="changePassword()"
+              style="display:flex; flex-direction:column; gap:1rem;">
+          <label class="field">
+            <span>{{ 'profile.currentPwd' | translate }}</span>
+            <p-password formControlName="currentPassword" [feedback]="false" [toggleMask]="true" fluid />
+          </label>
+          <label class="field">
+            <span>{{ 'profile.newPwd' | translate }}</span>
+            <p-password formControlName="newPassword" [toggleMask]="true" fluid />
+            @if (pwdForm.controls.newPassword.touched && pwdForm.controls.newPassword.errors?.['pattern']) {
+              <small class="field-error">{{ 'users.passwordPolicy' | translate }}</small>
+            }
+          </label>
+          <label class="field">
+            <span>{{ 'profile.confirmPwd' | translate }}</span>
+            <p-password formControlName="confirmPassword" [feedback]="false" [toggleMask]="true" fluid />
+            @if (pwdForm.touched && pwdForm.errors?.['mismatch']) {
+              <small class="field-error">{{ 'profile.pwdMismatch' | translate }}</small>
+            }
+          </label>
+          <p-button type="submit" [label]="'common.save' | translate" [loading]="saving()" />
+        </form>
+      </div>
+
+      <div class="surface-card page-card" style="max-width: 30rem; margin-top: 1.25rem;">
+        <h3 class="card-title">{{ 'profile.sessions' | translate }}</h3>
+        <p style="opacity:.7; font-size:.9rem;">{{ 'profile.sessionsHint' | translate }}</p>
+        <p-button [label]="'profile.logoutAll' | translate" icon="pi pi-power-off"
+                  severity="danger" [outlined]="true" (onClick)="logoutAll()" />
+      </div>
+    </p-tabpanel>
+
+    <!-- ===== Audit (ADMIN) ===== -->
+    @if (isAdmin) {
+      <p-tabpanel value="2">
+        <div class="surface-card page-card">
+          <div style="display:flex; gap:.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+            <input pInputText [(ngModel)]="filterUsername" [ngModelOptions]="{standalone:true}"
+                   [placeholder]="'common.username' | translate" (keyup.enter)="loadLogs()" />
+            <p-select [options]="eventTypes" [(ngModel)]="filterEvent" [ngModelOptions]="{standalone:true}"
+                      [showClear]="true" [placeholder]="'profile.eventType' | translate"
+                      (onChange)="loadLogs()" />
+            <p-button icon="pi pi-search" (onClick)="loadLogs()" />
+          </div>
+
+          <p-table [value]="logs()" [lazy]="true" (onLazyLoad)="loadLogs($event)"
+                   [paginator]="true" [rows]="logPageSize" [totalRecords]="totalLogs()"
+                   [loading]="logsLoading()" size="small">
+            <ng-template #header>
+              <tr>
+                <th>{{ 'profile.event' | translate }}</th>
+                <th>{{ 'common.username' | translate }}</th>
+                <th>IP</th>
+                <th>{{ 'profile.detail' | translate }}</th>
+                <th>{{ 'profile.date' | translate }}</th>
+              </tr>
+            </ng-template>
+            <ng-template #body let-log>
+              <tr>
+                <td><p-tag [value]="log.eventType" [severity]="eventSeverity(log)" /></td>
+                <td class="mono">{{ log.username }}</td>
+                <td class="mono">{{ log.ipAddress }}</td>
+                <td style="max-width:22rem; overflow:hidden; text-overflow:ellipsis;">{{ log.detail ?? '—' }}</td>
+                <td>{{ log.createdAt | date:'dd/MM/yy HH:mm:ss' }}</td>
+              </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+              <tr><td colspan="5" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </p-tabpanel>
+    }
+
+  </p-tabpanels>
+</p-tabs>

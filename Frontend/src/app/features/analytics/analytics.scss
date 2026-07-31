@@ -1,0 +1,181 @@
+/* ═══ Page Analytics ═══
+   S'appuie sur les variables globales (--app-*, --brand) : fonctionne
+   automatiquement dans les deux thèmes. */
+
+/* La question métier sous le titre — c'est elle qui donne du sens à la page */
+.ana-question {
+  font-style: italic;
+}
+
+.ana-filters {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* ── Bandeau insights (élément signature) ─────────────────────────────── */
+.ana-insights {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Carte « leader » : le seul aplat fort de la page, tout le reste est calme */
+.ana-leader {
+  border-radius: var(--radius-card, 10px);
+  padding: 1.25rem;
+  color: #fff;
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(122, 165, 248, .35), transparent 55%),
+    linear-gradient(135deg, #1e3a8a 0%, #2d5bd1 100%);
+
+  .ana-leader-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    opacity: .85;
+
+    i { color: #ffd76a; }
+  }
+
+  .ana-leader-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin-top: .4rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ana-leader-detail {
+    font-size: .85rem;
+    opacity: .8;
+    margin-top: .15rem;
+  }
+}
+
+.ana-insight {
+  display: flex;
+  gap: .9rem;
+  align-items: flex-start;
+
+  > i {
+    font-size: 1.25rem;
+    color: var(--brand-accent, #6366f1);
+    margin-top: .2rem;
+  }
+
+  .ana-insight-title {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    opacity: .6;
+  }
+  .ana-insight-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .ana-insight-detail {
+    font-size: .82rem;
+    opacity: .65;
+  }
+}
+
+/* ── Graphiques ───────────────────────────────────────────────────────── */
+.card-title {
+  margin: 0 0 .75rem;
+  font-size: .95rem;
+  font-weight: 600;
+}
+
+.chart      { height: 300px; }
+.chart-tall { height: 360px; }
+
+.ana-bottom { grid-template-columns: 1.2fr 1fr; }
+
+/* ── Barres de part (tableau + aging) ─────────────────────────────────── */
+.ana-share {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+.ana-share-bar {
+  flex: 1;
+  height: 8px;
+  min-width: 60px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--brand-accent, #6366f1) 12%, transparent);
+  overflow: hidden;
+}
+
+.ana-share-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: #2d5bd1;
+
+  &.warn { background: #e8a13c; }
+}
+
+.ana-share-pct {
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.4rem;
+  text-align: right;
+}
+
+.ana-aging {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+.ana-aging-row {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+
+  .ana-aging-label { min-width: 8rem; }
+}
+
+/* ── Panneau d'erreur (même rendu que le dashboard) ───────────────────── */
+.error-panel {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin-bottom: 1.25rem;
+
+  > i { color: #ef4444; font-size: 1.2rem; }
+  > span { flex: 1; }
+}
+
+/* ── Squelettes & responsive ──────────────────────────────────────────── */
+.skeleton {
+  min-height: 110px;
+  border-radius: var(--radius-card, 10px);
+  animation: ana-pulse 1.4s ease-in-out infinite;
+
+  &.chart { min-height: 300px; }
+}
+
+@keyframes ana-pulse {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: .85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+@media (max-width: 1100px) {
+  .ana-insights { grid-template-columns: 1fr 1fr; }
+  .ana-leader   { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .ana-insights,
+  .ana-bottom { grid-template-columns: 1fr; }
+}

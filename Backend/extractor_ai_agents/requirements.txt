@@ -1,0 +1,24 @@
+# ============================================
+# SEO7 AI Agents — Dépendances Python
+# ============================================
+
+# Framework web
+django==6.0.6
+djangorestframework==3.17.1
+django-cors-headers==4.9.0
+python-dotenv==1.2.2
+
+# Connexion bases de données
+pyodbc>=5.1
+
+# MySQL (stockage des rapports des agents) — driver pur Python, sans compilation
+PyMySQL>=1.1
+
+# Communication avec Ollama
+requests>=2.31
+
+# connexion Oracle
+oracledb>=2.0
+
+# OAuth2 Resource Server (validation des JWT RSA via JWKS AuthMS)
+pyjwt[crypto]>=2.8

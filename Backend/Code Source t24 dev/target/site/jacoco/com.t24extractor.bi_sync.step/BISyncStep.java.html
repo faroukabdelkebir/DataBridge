@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BISyncStep.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.bi_sync.step</a> &gt; <span class="el_source">BISyncStep.java</span></div><h1>BISyncStep.java</h1><pre class="source lang-java linenums">package com.t24extractor.bi_sync.step;
+
+import com.t24extractor.bi_sync.tasklet.BISyncTasklet;
+import com.t24extractor.repository.bi_repos.MetaDataRepository;
+import com.t24extractor.repository.bi_repos.ScheduledOpsRepository;
+import com.t24extractor.repository.bi_repos.SchemaSourceAuditRepository;
+import com.t24extractor.repository.bi_repos.SchemaSourceRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
+import org.springframework.batch.core.step.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+
+
+import static com.t24extractor.commons.Constants.*;
+
+/**
+ * Déclaration autonome du step {@code BI_SYNC}.
+ *
+ * &lt;p&gt;Variante alimentée depuis le contexte de &lt;i&gt;step&lt;/i&gt; et non de &lt;i&gt;job&lt;/i&gt;,
+ * utilisable dans un contexte partitionné où chaque partition dispose de son
+ * propre dictionnaire.
+ */
+<span class="fc" id="L31">@Slf4j</span>
+@Configuration
+<span class="fc" id="L33">public class BISyncStep {</span>
+
+
+    /**
+     * @param ssMap                       dictionnaire STANDARD.SELECTION de la partition
+     * @param schemaSourceRepository      référentiel des colonnes
+     * @param schemaSourceAuditRepository changements de schéma en attente
+     * @param metaDataRepository          registre des champs multivalués
+     * @param scheduledOpsRepository      opérations de maintenance différées
+     * @param jdbcTemplate                accès à la base BI
+     * @return le tasklet configuré pour la table traitée
+     */
+    @Bean
+    @StepScope
+    public BISyncTasklet biSyncTasklet(
+            @Value(&quot;#{stepExecutionContext['&quot; + BI_STANDARD_SELECTION + &quot;']}&quot;) JSONObject ssMap,
+            SchemaSourceRepository schemaSourceRepository,
+            SchemaSourceAuditRepository schemaSourceAuditRepository,
+            MetaDataRepository metaDataRepository,
+            ScheduledOpsRepository scheduledOpsRepository,
+            @Qualifier(&quot;jdbcBI&quot;) JdbcTemplate jdbcTemplate) {
+<span class="fc" id="L54">        BISyncTasklet tasklet = new BISyncTasklet(</span>
+                schemaSourceRepository,
+                schemaSourceAuditRepository,
+                metaDataRepository,
+                scheduledOpsRepository,
+                jdbcTemplate);
+<span class="fc" id="L60">        tasklet.setSs(ssMap);</span>
+<span class="fc" id="L61">        tasklet.setT24TableName(&quot;CUSTOMER&quot;);</span>
+<span class="fc" id="L62">        tasklet.setColonneRef(&quot;DATE_TIME&quot;);</span>
+<span class="fc" id="L63">        return tasklet;</span>
+    }
+
+    /**
+     * Déclaration du step qui contient le tasklet BISyncTasklet.
+     *
+     * @return step BI_SYNC
+     */
+
+
+    @Bean
+    public Step bISync(BISyncTasklet biSyncTasklet, JobRepository jobRepository,@Qualifier(&quot;biTransactionManager&quot;) PlatformTransactionManager platformTransactionManager) {
+<span class="fc" id="L75">        return new StepBuilder(String.join(&quot;&quot;, BI_SYNC), jobRepository)</span>
+<span class="fc" id="L76">                .tasklet(biSyncTasklet, platformTransactionManager)</span>
+<span class="fc" id="L77">                .build();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

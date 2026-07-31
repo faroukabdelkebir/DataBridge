@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Json_Flattener.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.tasklet</a> &gt; <span class="el_source">Json_Flattener.java</span></div><h1>Json_Flattener.java</h1><pre class="source lang-java linenums">package com.t24extractor.tasklet;
+
+import lombok.Setter;
+import org.json.JSONObject;
+import org.jspecify.annotations.NonNull;
+import org.springframework.batch.core.step.StepContribution;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+import static com.t24extractor.commons.Constants.*;
+
+/**
+ * Normalise les champs multivalués (JSON) de la table principale vers des
+ * tables satellites « TABLE#CHAMP ».
+ *
+ * v2 — IDEMPOTENT : chaque satellite est vidé avant d'être realimenté.
+ * L'ancienne version réinsérait l'intégralité des lignes à chaque exécution
+ * du job, ce qui multipliait les volumes (ex. 4 000 factures → 16 000 lignes
+ * dans AA_BILL_DETAILS#SETTLE_STATUS après 4 runs) et faussait toutes les
+ * agrégations en aval.
+ */
+@Component
+@StepScope
+public class Json_Flattener implements Tasklet {
+
+    private final JdbcTemplate jdbcTemplate;
+
+    @Setter
+    protected String table;
+
+<span class="fc" id="L40">    public Json_Flattener(@Qualifier(&quot;jdbcBI&quot;) JdbcTemplate jdbcTemplate) {</span>
+<span class="fc" id="L41">        this.jdbcTemplate = jdbcTemplate;</span>
+<span class="fc" id="L42">    }</span>
+
+
+    /**
+     * {@inheritDoc}
+     *
+     * &lt;p&gt;Pour chaque champ multivalué de la table, crée si besoin la table
+     * satellite {@code TABLE#CHAMP}, la vide, puis la réalimente en éclatant le
+     * JSON avec {@code OPENJSON}. Les colonnes absentes de la table principale
+     * et le champ {@code DATE_TIME} sont ignorés.
+     *
+     * @return toujours {@link RepeatStatus#FINISHED}
+     */
+    @Override
+    public RepeatStatus execute(StepContribution stepContribution, @NonNull ChunkContext chunkContext) throws Exception {
+
+<span class="fc" id="L58">        JSONObject nameJs = new JSONObject(</span>
+<span class="fc" id="L59">                stepContribution.getStepExecution()</span>
+<span class="fc" id="L60">                        .getJobExecution()</span>
+<span class="fc" id="L61">                        .getExecutionContext()</span>
+<span class="fc" id="L62">                        .getString(BI_STANDARD_SELECTION)</span>
+        );
+<span class="fc" id="L64">        String name = this.table;</span>
+
+<span class="fc" id="L66">        Iterator&lt;String&gt; iterator = nameJs.keys();</span>
+
+<span class="fc" id="L68">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L69">        List&lt;String&gt; deleteQueries = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L70">        List&lt;String&gt; insertQueries = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        while (iterator.hasNext()) {</span>
+<span class="fc" id="L72">            String key = iterator.next();</span>
+
+<span class="fc bfc" id="L74" title="All 2 branches covered.">            if (!columnExistsInMainTable(name, key)) {</span>
+<span class="fc" id="L75">                continue;</span>
+            }
+
+<span class="pc bpc" id="L78" title="1 of 4 branches missed.">            if (!key.contains(&quot;Local_Ref&quot;) &amp;&amp; !key.equals(&quot;DATE_TIME&quot;)</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">                    &amp;&amp; nameJs.get(key).toString().contains(&quot;MAX&quot;)) {</span>
+
+<span class="fc" id="L81">                sb.append(String.format(CREATE_SATELLITE_TABLE_TPL, name, key, ID_TYPE));</span>
+
+                // Idempotence : purge avant réalimentation complète
+<span class="fc" id="L84">                deleteQueries.add(purgeQuery(name, key));</span>
+
+<span class="fc" id="L86">                insertQueries.add(String.format(INSERT_SATELLITE_TPL, name, key));</span>
+
+<span class="pc bpc" id="L88" title="3 of 4 branches missed.">            } else if (key.contains(&quot;Local_Ref&quot;) &amp;&amp; key.contains(&quot;MAX&quot;)) {</span>
+
+<span class="nc" id="L90">                sb.append(String.format(CREATE_LOCAL_REF_SATELLITE_TPL, name, key, ID_TYPE));</span>
+
+                // Idempotence : purge avant réalimentation complète
+<span class="nc" id="L93">                deleteQueries.add(purgeQuery(name, key));</span>
+
+<span class="nc" id="L95">                insertQueries.add(String.format(INSERT_LOCAL_REF_SATELLITE_TPL, name, key));</span>
+            }
+<span class="fc" id="L97">        }</span>
+
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (!sb.isEmpty()) {</span>
+<span class="fc" id="L100">            jdbcTemplate.execute(sb.toString());</span>
+        }
+
+<span class="fc bfc" id="L103" title="All 2 branches covered.">        if (!deleteQueries.isEmpty()) {</span>
+<span class="fc" id="L104">            jdbcTemplate.batchUpdate(deleteQueries.toArray(new String[0]));</span>
+        }
+
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (!insertQueries.isEmpty()) {</span>
+<span class="fc" id="L108">            jdbcTemplate.batchUpdate(insertQueries.toArray(new String[0]));</span>
+        }
+
+<span class="fc" id="L111">        return RepeatStatus.FINISHED;</span>
+    }
+
+    /** Vide un satellite s'il existe — rend la normalisation rejouable. */
+    private String purgeQuery(String tableName, String key) {
+<span class="fc" id="L116">        return String.format(PURGE_SATELLITE_TPL, tableName, key);</span>
+    }
+
+    private boolean columnExistsInMainTable(String tableName, String columnName) {
+<span class="fc" id="L120">        Integer count = jdbcTemplate.queryForObject(</span>
+                COUNT_COLUMN_IN_TABLE, Integer.class, tableName, columnName);
+<span class="pc bpc" id="L122" title="1 of 4 branches missed.">        return count != null &amp;&amp; count &gt; 0;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

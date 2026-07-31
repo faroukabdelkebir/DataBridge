@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.t24extractor.controller.JobLauncherControllerTest
+-------------------------------------------------------------------------------
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.145 s -- in com.t24extractor.controller.JobLauncherControllerTest

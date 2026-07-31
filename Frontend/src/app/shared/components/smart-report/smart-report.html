@@ -1,0 +1,80 @@
+<!-- Rendu récursif d'un bloc via template outlet -->
+<ng-template #blockTpl let-block>
+  @switch (block.kind) {
+
+    @case ('section') {
+      <div class="sr-section">
+        @if (block.title) { <h4 class="sr-section-title">{{ block.title }}</h4> }
+        <div class="sr-section-body">
+          @for (child of block.blocks; track $index) {
+            <ng-container *ngTemplateOutlet="blockTpl; context: { $implicit: child }" />
+          }
+        </div>
+      </div>
+    }
+
+    @case ('keyvalue') {
+      <dl class="sr-kv">
+        @for (p of block.pairs; track $index) {
+          <div class="sr-kv-row">
+            <dt>{{ p.label }}</dt>
+            <dd [class.sr-empty]="p.kind === 'empty'" [class.sr-num]="p.kind === 'number'">
+              @if (p.kind === 'bool') {
+                <p-tag [value]="p.value" [severity]="boolSeverity(p)" />
+              } @else {
+                {{ p.value }}
+              }
+            </dd>
+          </div>
+        }
+      </dl>
+    }
+
+    @case ('table') {
+      <p-table [value]="block.rows" size="small" styleClass="sr-table">
+        <ng-template #header>
+          <tr>
+            @for (c of block.columns; track c.key) {
+              <th [class.num]="false">{{ c.label }}</th>
+            }
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr>
+            @for (c of block.columns; track c.key) {
+              <td [class.num]="row[c.key].kind === 'number'"
+                  [class.sr-empty]="row[c.key].kind === 'empty'">
+                @if (row[c.key].kind === 'bool') {
+                  <p-tag [value]="row[c.key].value" [severity]="boolSeverity(row[c.key])" />
+                } @else {
+                  {{ row[c.key].value }}
+                }
+              </td>
+            }
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+
+    @case ('list') {
+      <div class="sr-list">
+        @for (it of block.items; track $index) {
+          <span class="sr-chip">{{ it.value }}</span>
+        }
+      </div>
+    }
+
+    @case ('text') {
+      <div class="sr-kv-row sr-single">
+        @if (block.kv.label) { <dt>{{ block.kv.label }}</dt> }
+        <dd [class.sr-empty]="block.kv.kind === 'empty'">{{ block.kv.value }}</dd>
+      </div>
+    }
+  }
+</ng-template>
+
+<div class="sr-root">
+  @for (block of blocks(); track $index) {
+    <ng-container *ngTemplateOutlet="blockTpl; context: { $implicit: block }" />
+  }
+</div>

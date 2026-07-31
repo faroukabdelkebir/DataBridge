@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BISyncTasklet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.bi_sync.tasklet</a> &gt; <span class="el_source">BISyncTasklet.java</span></div><h1>BISyncTasklet.java</h1><pre class="source lang-java linenums">package com.t24extractor.bi_sync.tasklet;
+
+import com.t24extractor.bi_sync.ops.SqlOps;
+import com.t24extractor.bi_sync.ops.SqlServerOps;
+import com.t24extractor.model.MetaDataTable;
+import com.t24extractor.model.ScheduledOps;
+import com.t24extractor.model.SchemaSource;
+import com.t24extractor.model.SchemaSourceAudit;
+import com.t24extractor.repository.bi_repos.MetaDataRepository;
+import com.t24extractor.repository.bi_repos.ScheduledOpsRepository;
+import com.t24extractor.repository.bi_repos.SchemaSourceAuditRepository;
+import com.t24extractor.repository.bi_repos.SchemaSourceRepository;
+import com.t24extractor.utils.Renamer;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
+import org.springframework.batch.core.ExitStatus;
+
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.StepContribution;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.t24extractor.commons.Constants.*;
+
+/**
+ * Aligne la table BI sur le schéma attendu avant toute écriture de données.
+ *
+ * &lt;p&gt;Étape charnière du job : elle garantit que la table cible existe, qu'elle
+ * porte exactement les colonnes qui seront insérées, et publie les artefacts
+ * dont dépend le reste du traitement.
+ *
+ * &lt;h2&gt;Déroulement&lt;/h2&gt;
+ * &lt;ol&gt;
+ *   &lt;li&gt;création de la table cible si elle n'existe pas ;&lt;/li&gt;
+ *   &lt;li&gt;table inconnue de SCHEMA_SOURCE — le job s'arrête sur le statut
+ *       {@code NEW_TABLE}, faute de schéma exploitable ;&lt;/li&gt;
+ *   &lt;li&gt;application des changements en attente dans SCHEMA_SOURCE_AUDIT
+ *       (ALTER TABLE, index, métadonnées multivaluées), puis purge de l'audit ;&lt;/li&gt;
+ *   &lt;li&gt;publication du dictionnaire nettoyé, de la liste des colonnes et de
+ *       l'INSERT.&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;h2&gt;Cohérence des artefacts&lt;/h2&gt;
+ * {@code sysFieldOds}, {@code COLUMNS} et {@code SQL_QUERY} sont tous dérivés du
+ * même ensemble de colonnes, dans un {@code LinkedHashSet} partagé. C'est ce qui
+ * garantit que l'ordre des colonnes et celui des paramètres de l'INSERT ne
+ * peuvent pas diverger.
+ *
+ * @see com.t24extractor.model.SchemaSourceAudit
+ * @see com.t24extractor.bi_sync.ops.SqlServerOps
+ */
+@Component
+<span class="fc" id="L65">@Slf4j</span>
+public class BISyncTasklet implements AbstractBISyncTasklet, Tasklet {
+
+    private final SchemaSourceRepository schemaSourceRepository;
+
+    private final SchemaSourceAuditRepository schemaSourceAuditRepository;
+
+    private final MetaDataRepository metaDataRepository;
+
+    private final ScheduledOpsRepository scheduledOpsRepository;
+
+
+    private final SqlOps sqlOps;
+
+    private final Renamer renamer;
+
+
+    private final JdbcTemplate jdbcTemplate;
+
+    public BISyncTasklet(
+            SchemaSourceRepository schemaSourceRepository,
+            SchemaSourceAuditRepository schemaSourceAuditRepository,
+            MetaDataRepository metaDataRepository,
+            ScheduledOpsRepository scheduledOpsRepository,
+<span class="fc" id="L89">            @Qualifier(&quot;jdbcBI&quot;) JdbcTemplate jdbcTemplate) {</span>
+<span class="fc" id="L90">        this.schemaSourceRepository = schemaSourceRepository;</span>
+<span class="fc" id="L91">        this.schemaSourceAuditRepository = schemaSourceAuditRepository;</span>
+<span class="fc" id="L92">        this.metaDataRepository = metaDataRepository;</span>
+<span class="fc" id="L93">        this.scheduledOpsRepository = scheduledOpsRepository;</span>
+<span class="fc" id="L94">        this.jdbcTemplate = jdbcTemplate;</span>
+<span class="fc" id="L95">        this.sqlOps = new SqlServerOps();</span>
+<span class="fc" id="L96">        this.renamer = new Renamer();</span>
+<span class="fc" id="L97">    }</span>
+
+    @Setter
+    JSONObject ss;
+
+    @Setter
+    String t24TableName;
+
+    @Setter
+    String colonneRef;
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return toujours {@link RepeatStatus#FINISHED} ; l'arrêt sur table inconnue
+     *         passe par le statut de sortie {@code NEW_TABLE}
+     */
+    @Override
+    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) throws Exception {
+
+<span class="fc" id="L117">        String biTable = renamer.biRenamer(this.t24TableName);</span>
+
+        //Creation des colonnes par defaut _id,ORIGINAL_ID et INSERT_DATE
+<span class="fc" id="L120">        log.info(&quot;Création des colonnes par défaut pour la table {}&quot;, biTable);</span>
+<span class="fc" id="L121">        sqlOps.createDestTable(jdbcTemplate, biTable, new HashSet&lt;&gt;(schemaSourceRepository.findSchemaSourceByTableNameAndEnabled(this.t24TableName, true)));</span>
+
+        //Vérification si la table en cours de chargement avait ses colonnes traitées dans la table SCHEMA_SOURCE ou pas.
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        if (!statusSchemaSource(biTable)) {</span>
+
+            //Alimentation de la table SCHEMA_SOURCE avec les données la table
+<span class="fc" id="L127">            log.info(&quot;Alimenter du schéma dans la table SchemaSource&quot;);</span>
+<span class="fc" id="L128">            loadSchemaSource(biTable, this.ss);</span>
+
+<span class="fc" id="L130">            stepContribution.setExitStatus(new ExitStatus(NEW_TABLE));</span>
+<span class="fc" id="L131">            stepContribution.getStepExecution().getJobExecution().setExitStatus(new ExitStatus(NEW_TABLE));</span>
+<span class="fc" id="L132">            return RepeatStatus.FINISHED;</span>
+        }
+
+<span class="fc" id="L135">        processSchemaChanges(biTable);</span>
+<span class="fc" id="L136">        populateExecutionContext(stepContribution, biTable);</span>
+<span class="fc" id="L137">        return RepeatStatus.FINISHED;</span>
+    }
+
+    private void processSchemaChanges(String biTable) {
+<span class="fc" id="L141">        List&lt;SchemaSourceAudit&gt; changesList = schemaSourceAuditRepository.findAllBySourceTableName(biTable);</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (changesList.isEmpty()) {</span>
+<span class="fc" id="L143">            return;</span>
+        }
+
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        for (SchemaSourceAudit change : changesList) {</span>
+<span class="fc" id="L147">            int diff = change.newSourceEnabled() - change.oldSourceEnabled();</span>
+<span class="pc bpc" id="L148" title="1 of 4 branches missed.">            if (diff == 1 &amp;&amp; change.dataType().contains(MAX)) {</span>
+<span class="fc" id="L149">                SchemaSource sch = schemaSourceRepository.findAllByTableNameAndColumnName(change.sourceTableName(), change.ColumnName())</span>
+<span class="fc" id="L150">                        .orElseThrow(() -&gt; new RuntimeException(&quot;La colonne saisie n'existe pas dans la table sourceSchema!&quot;));</span>
+<span class="fc" id="L151">                List&lt;MetaDataTable&gt; metaDataTableList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L152">                metaDataTableList.add(new MetaDataTable(biTable, change.ColumnName(), sch.isLocalRef()));</span>
+<span class="fc" id="L153">                sqlOps.save(jdbcTemplate, metaDataTableList);</span>
+            }
+<span class="pc bpc" id="L155" title="1 of 4 branches missed.">            if (diff == -1 &amp;&amp; change.dataType().contains(MAX)) {</span>
+<span class="fc" id="L156">                SchemaSource sch = schemaSourceRepository.findAllByTableNameAndColumnName(change.sourceTableName(), change.ColumnName())</span>
+<span class="pc" id="L157">                        .orElseThrow(() -&gt; new RuntimeException(&quot;La colonne saisie n'existe pas dans la table sourceSchema!&quot;));</span>
+<span class="fc" id="L158">                metaDataRepository.delete(new MetaDataTable(biTable, change.ColumnName(), sch.isLocalRef()));</span>
+            }
+
+<span class="fc" id="L161">            updateColumn(biTable, diff, change.ColumnName(), change.dataType());</span>
+<span class="fc" id="L162">            int diffIndex = change.newSourceIndexed() - change.oldSourceIndexed();</span>
+<span class="fc" id="L163">            updateIndex(biTable, diffIndex, change.ColumnName());</span>
+<span class="fc" id="L164">        }</span>
+<span class="fc" id="L165">        schemaSourceAuditRepository.deleteAll(changesList);</span>
+<span class="fc" id="L166">    }</span>
+
+    /**
+     * Alimente le contexte d'exécution avec des artefacts COHÉRENTS entre eux :
+     * le mapping XML (BI_STANDARD_SELECTION), la liste des colonnes (COLUMNS)
+     * et l'INSERT (SQL_QUERY) sont désormais tous dérivés du MÊME ensemble.
+     *
+     * Corrige deux défauts de l'ancienne version :
+     *  1. COLUMNS / SQL_QUERY étaient construits depuis les colonnes
+     *     « _enabled = 1 » brutes, alors que le mapping XML était filtré par
+     *     le STANDARD.SELECTION → une colonne active mais absente du
+     *     STANDARD.SELECTION (ex. BILL_REFERENCE) entrait dans l'INSERT sans
+     *     exister dans la table cible ni être alimentée par le processeur,
+     *     faisant échouer le writer (« Unable to retrieve data from the
+     *     source » en mode useBulkCopyForBatchInsert).
+     *  2. Deux HashSet distincts étaient créés pour COLUMNS et SQL_QUERY :
+     *     l'alignement ordre des colonnes ↔ ordre des placeholders ne tenait
+     *     qu'à la stabilité d'itération de HashSet. Un unique LinkedHashSet
+     *     est maintenant partagé par les deux constructions.
+     */
+    private void populateExecutionContext(StepContribution stepContribution, String biTable) {
+
+        // 1. Nettoyage du STANDARD.SELECTION — la référence unique du pipeline.
+<span class="fc" id="L189">        JSONObject cleanedSS = ssMapClean(biTable, this.ss);</span>
+
+        // 2. Colonnes actives, filtrées par le même critère que le mapping XML.
+<span class="fc" id="L192">        Set&lt;SchemaSource&gt; insertable = schemaSourceRepository</span>
+<span class="fc" id="L193">                .findSchemaSourceByTableNameAndEnabled(biTable, true)</span>
+<span class="fc" id="L194">                .stream()</span>
+<span class="fc" id="L195">                .filter(column -&gt; {</span>
+<span class="fc" id="L196">                    boolean mapped = cleanedSS.has(column.getColumnName());</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">                    if (!mapped) {</span>
+<span class="fc" id="L198">                        log.warn(&quot;Colonne '{}' active dans SCHEMA_SOURCE mais absente du &quot;</span>
+                                        + &quot;STANDARD.SELECTION : exclue de l'INSERT pour la table '{}'&quot;,
+<span class="fc" id="L200">                                column.getColumnName(), biTable);</span>
+                    }
+<span class="fc" id="L202">                    return mapped;</span>
+                })
+<span class="fc" id="L204">                .collect(Collectors.toCollection(LinkedHashSet::new));</span>
+
+        // 3. Auto-réparation : toute colonne insérable encore absente de la
+        //    table cible est matérialisée (couvre les activations dont l'audit
+        //    a été consommé sans que l'ALTER TABLE ait réellement abouti).
+<span class="fc" id="L209">        ensureDestColumns(biTable, insertable);</span>
+
+<span class="fc" id="L211">        stepContribution.getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L212">                .put(BI_STANDARD_SELECTION, cleanedSS.toString());</span>
+<span class="fc" id="L213">        stepContribution.getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L214">                .put(&quot;COLUMNS&quot;, sqlOps.fieldsToInsert(insertable));</span>
+<span class="fc" id="L215">        stepContribution.getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L216">                .put(&quot;SQL_QUERY&quot;, sqlOps.insertConstruction(biTable, insertable));</span>
+<span class="fc" id="L217">    }</span>
+
+    /**
+     * Garantit que chaque colonne destinée à l'INSERT existe physiquement
+     * dans la table BI — le pipeline redevient auto-cohérent même si la
+     * table et SCHEMA_SOURCE ont divergé (run interrompu, audit purgé…).
+     */
+    private void ensureDestColumns(String biTable, Set&lt;SchemaSource&gt; insertable) {
+<span class="fc" id="L225">        Set&lt;String&gt; existing = sqlOps.destColumns(jdbcTemplate, biTable);</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">        for (SchemaSource column : insertable) {</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">            if (!existing.contains(column.getColumnName())) {</span>
+<span class="fc" id="L228">                log.info(&quot;Colonne '{}' manquante dans la table '{}' : création automatique ({})&quot;,</span>
+<span class="fc" id="L229">                        column.getColumnName(), biTable, column.getDataType());</span>
+<span class="fc" id="L230">                sqlOps.addCol(jdbcTemplate, biTable, column.getColumnName(), column.getDataType());</span>
+            }
+<span class="fc" id="L232">        }</span>
+<span class="fc" id="L233">    }</span>
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean statusSchemaSource(String tableName) {
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        return schemaSourceRepository.countByTableName(tableName) != 0;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadMetaDataTable(String tableName, @NotNull List&lt;SchemaSource&gt; schemaSourceList) {
+<span class="fc" id="L249">        List&lt;MetaDataTable&gt; metaList = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L250" title="All 2 branches covered.">        for (SchemaSource row : schemaSourceList) {</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">            if (row.isLocalRef()) metaList.add(new MetaDataTable(tableName, row.getColumnName(), true));</span>
+<span class="fc bfc" id="L252" title="All 2 branches covered.">            if (!row.isLocalRef()) metaList.add(new MetaDataTable(tableName, row.getColumnName(), false));</span>
+<span class="fc" id="L253">        }</span>
+<span class="fc" id="L254">        sqlOps.save(jdbcTemplate, metaList);</span>
+<span class="fc" id="L255">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void checkSchemaUpdate(String tableName) {
+<span class="fc" id="L262">        schemaSourceAuditRepository.findAllBySourceTableName(tableName);</span>
+<span class="fc" id="L263">    }</span>
+
+    /**
+     * {@inheritDoc}
+     *
+     * &lt;p&gt;Sans effet : les opérations différées sont enregistrées directement par
+     * {@link #updateIndex(String, int, String)}.
+     */
+    @Override
+    public void scheduleOp(String tableName) {
+        //
+<span class="fc" id="L274">    }</span>
+
+    /**
+     * {@inheritDoc}
+     *
+     * &lt;p&gt;Au-delà de dix millions de lignes, la création est enregistrée dans
+     * SCHEDULED_OPS au lieu d'être exécutée : un index créé en ligne
+     * verrouillerait la table pendant toute l'extraction.
+     */
+    @Override
+    public void updateIndex(String tableName, int diff, String column) {
+<span class="fc bfc" id="L285" title="All 2 branches covered.">        if (diff == 1) {</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">            if (countTable(jdbcTemplate, tableName) &gt; 10000000) {</span>
+<span class="fc" id="L287">                scheduledOpsRepository.save(new ScheduledOps(null, sqlOps.escapeColumn(tableName), sqlOps.escapeColumn(column), &quot;I&quot;));</span>
+            } else {
+<span class="fc" id="L289">                sqlOps.createIndex(jdbcTemplate, tableName, column);</span>
+            }
+        }
+<span class="fc bfc" id="L292" title="All 2 branches covered.">        if (diff == -1) sqlOps.dropIndex(jdbcTemplate, column);</span>
+<span class="fc" id="L293">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void updateColumn(String table, int diff, String column, String dataType) {
+<span class="fc bfc" id="L300" title="All 2 branches covered.">        if (diff == 1) {</span>
+<span class="fc" id="L301">            sqlOps.addCol(jdbcTemplate, table, column, dataType);</span>
+
+        }
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        if (diff == -1) sqlOps.dropCol(jdbcTemplate, table, column);</span>
+<span class="fc" id="L305">    }</span>
+
+    /**
+     * {@inheritDoc}
+     *
+     * &lt;p&gt;Sans effet : SCHEMA_SOURCE est alimentée en amont par l'IHM
+     * d'administration, pas par le batch. Le point d'extension est conservé pour
+     * un éventuel auto-enregistrement des nouvelles tables.
+     */
+    @Override
+    public void loadSchemaSource(String tableName, @NotNull JSONObject ss) {
+
+        // alimenting table in mysqlServer ( the data already exist )
+<span class="fc" id="L318">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JSONObject ssMapClean(String tableName, JSONObject ssMap) {
+<span class="fc" id="L325">        List&lt;SchemaSource&gt; list = schemaSourceRepository.findAll(tableName);</span>
+<span class="fc" id="L326">        JSONObject newSSMap = new JSONObject();</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        for (SchemaSource schemaSource : list) {</span>
+<span class="fc" id="L328">            String columnName = schemaSource.getColumnName();</span>
+<span class="pc bpc" id="L329" title="1 of 4 branches missed.">            if (ssMap.has(columnName) &amp;&amp; !ssMap.isNull(columnName)) {</span>
+<span class="fc" id="L330">                newSSMap.put(columnName, ssMap.get(columnName));</span>
+            } else {
+<span class="fc" id="L332">                log.warn(&quot;Colonne '{}' absente du STANDARD.SELECTION pour la table '{}', ignorée pendant BI_SYNC&quot;, columnName, tableName);</span>
+            }
+<span class="fc" id="L334">        }</span>
+<span class="fc" id="L335">        ssMap.clear();</span>
+<span class="fc" id="L336">        return newSSMap;</span>
+    }
+
+    /**
+     * @param jdbcTemplate accès à la base BI
+     * @param tableName    table à compter
+     * @return le nombre de lignes, d'après les statistiques SQL Server
+     */
+    public Long countTable(JdbcTemplate jdbcTemplate, String tableName) {
+<span class="fc" id="L345">        return sqlOps.countAll(jdbcTemplate, tableName);</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

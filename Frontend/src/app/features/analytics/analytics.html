@@ -1,0 +1,152 @@
+<!-- ═══ En-tête : chaque page analytique répond à UNE question métier ═══ -->
+<header class="page-head">
+  <div>
+    <h1 class="page-title">{{ 'analytics.title' | translate }}</h1>
+    <p class="page-subtitle ana-question">{{ 'analytics.question' | translate }}</p>
+  </div>
+
+  <div class="ana-filters">
+    <p-select
+      [options]="yearOptions()"
+      [ngModel]="selectedYear()"
+      (ngModelChange)="onYearChange($event)"
+      optionLabel="label" optionValue="value"
+      styleClass="ana-year-select"
+      [pTooltip]="'analytics.filter.year' | translate" />
+    <p-button icon="pi pi-refresh" [rounded]="true" [text]="true"
+              [loading]="loading()" (onClick)="load()"
+              pTooltip="{{ 'common.refresh' | translate }}" />
+  </div>
+</header>
+
+<app-analytics-tabs />
+
+@if (error()) {
+  <div class="surface-card error-panel">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ 'common.loadError' | translate }}</span>
+    <p-button [label]="'common.retry' | translate" icon="pi pi-refresh"
+              severity="secondary" (onClick)="load()" />
+  </div>
+}
+
+<!-- ═══ Bandeau insight : la donnée parle avant les graphiques ═══ -->
+@if (leaderInsight(); as leader) {
+  <section class="ana-insights">
+    <div class="ana-leader">
+      <div class="ana-leader-head">
+        <i class="pi pi-star-fill"></i>
+        <span>{{ leader.titleKey | translate }}</span>
+      </div>
+      <div class="ana-leader-value">{{ leader.value }}</div>
+      <div class="ana-leader-detail">{{ leader.detailKey ? (leader.detailKey | translate:leader.params) : leader.detail }}</div>
+    </div>
+
+    @for (ins of otherInsights(); track ins.type) {
+      <div class="surface-card ana-insight">
+        <i class="pi" [class.pi-chart-pie]="ins.type === 'CONCENTRATION'"
+                      [class.pi-bolt]="ins.type === 'PIC_ACTIVITE'"></i>
+        <div>
+          <div class="ana-insight-title">{{ ins.titleKey | translate }}</div>
+          <div class="ana-insight-value">{{ ins.value }}</div>
+          <div class="ana-insight-detail">{{ ins.detailKey ? (ins.detailKey | translate:ins.params) : ins.detail }}</div>
+        </div>
+      </div>
+    }
+  </section>
+}
+
+<!-- ═══ KPIs ═══ -->
+<section class="grid-kpi">
+  @for (kpi of cards(); track kpi.key) {
+    <app-kpi-card [kpi]="kpi" />
+  } @empty {
+    @for (i of [1,2,3,4]; track i) {
+      <div class="surface-card skeleton"></div>
+    }
+  }
+</section>
+
+<!-- ═══ Graphiques ═══ -->
+<section class="grid-charts">
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.chart.monthlyTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else if (monthly().length === 0) {
+      <div class="empty-state">{{ 'analytics.empty.transfers' | translate }}</div>
+    }
+    @else { <div echarts [options]="monthlyOptions()" class="chart"></div> }
+  </div>
+
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.chart.pyramidTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else if (pyramid().length === 0) {
+      <div class="empty-state">{{ 'analytics.empty.pyramid' | translate }}</div>
+    }
+    @else { <div echarts [options]="pyramidOptions()" class="chart"></div> }
+  </div>
+</section>
+
+<section class="grid-charts ana-bottom">
+  <!-- Top gestionnaires -->
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.chart.officersTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else { <div echarts [options]="officersOptions()" class="chart chart-tall"></div> }
+  </div>
+
+  <!-- Tableau performance par gestionnaire, avec barres de part -->
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'analytics.table.title' | translate }}</h3>
+    <p-table [value]="officers()" [loading]="loading()"
+             styleClass="p-datatable-sm" [scrollable]="true" scrollHeight="320px">
+      <ng-template #header>
+        <tr>
+          <th>{{ 'analytics.table.officer' | translate }}</th>
+          <th class="num">{{ 'analytics.table.clients' | translate }}</th>
+          <th class="num">{{ 'analytics.table.avgAge' | translate }}</th>
+          <th>{{ 'analytics.table.share' | translate }}</th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-o>
+        <tr>
+          <td class="mono">{{ o.officer }}</td>
+          <td class="num">{{ o.nbClients | number }}</td>
+          <td class="num">{{ o.ageMoyen | number:'1.0-1' }}</td>
+          <td>
+            <div class="ana-share">
+              <div class="ana-share-bar">
+                <div class="ana-share-fill" [style.width.%]="o.partPct"></div>
+              </div>
+              <span class="ana-share-pct">{{ o.partPct | number:'1.0-1' }} %</span>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr><td colspan="4" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+      </ng-template>
+    </p-table>
+  </div>
+</section>
+
+<!-- Vieillissement des créances : n'apparaît qu'une fois AGING_STATUS extraite -->
+@if (aging().length > 0) {
+  <section class="grid-charts">
+    <div class="surface-card">
+      <h3 class="card-title">{{ 'analytics.chart.agingTitle' | translate }}</h3>
+      <div class="ana-aging">
+        @for (a of aging(); track a.label) {
+          <div class="ana-aging-row">
+            <span class="ana-aging-label mono">{{ a.label }}</span>
+            <div class="ana-share-bar">
+              <div class="ana-share-fill warn" [style.width.%]="a.pct"></div>
+            </div>
+            <span class="ana-share-pct">{{ a.value | number }} ({{ a.pct }} %)</span>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+}

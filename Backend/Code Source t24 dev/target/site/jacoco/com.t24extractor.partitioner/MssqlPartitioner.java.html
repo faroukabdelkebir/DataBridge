@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MssqlPartitioner.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.partitioner</a> &gt; <span class="el_source">MssqlPartitioner.java</span></div><h1>MssqlPartitioner.java</h1><pre class="source lang-java linenums">package com.t24extractor.partitioner;
+
+import org.springframework.batch.core.partition.Partitioner;
+import org.springframework.batch.infrastructure.item.ExecutionContext;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Attribue un simple index à chacun des workers.
+ *
+ * &lt;p&gt;Aucune borne n'est calculée ici : la répartition des lignes est déléguée à
+ * Oracle, via la clause {@code MOD(ORA_HASH(ROWID), gridSize) = index} posée
+ * par {@link com.t24extractor.tasklet.QueryTasklet}. Chaque worker reçoit donc
+ * uniquement son index, sous la clé {@code value}.
+ *
+ * &lt;p&gt;L'avantage sur un découpage par plages est qu'aucun comptage préalable
+ * n'est nécessaire et que la répartition reste équilibrée même si les
+ * identifiants sont irrégulièrement distribués.
+ */
+<span class="fc" id="L21">public class MssqlPartitioner implements Partitioner {</span>
+    /**
+     * {@inheritDoc}
+     *
+     * @param gridSize nombre de workers
+     * @return une partition {@code partition&lt;n&gt;} par worker, portant son index
+     */
+    @Override
+    public Map&lt;String, ExecutionContext&gt; partition(int gridSize) {
+
+<span class="fc" id="L31">        Map&lt;String, ExecutionContext&gt; result = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L33">        int min = 0;</span>
+
+
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        while (min &lt; gridSize)</span>
+        {
+<span class="fc" id="L38">            ExecutionContext value = new ExecutionContext();</span>
+
+<span class="fc" id="L40">            result.put(&quot;partition&quot; + min, value);</span>
+
+<span class="fc" id="L42">            value.putInt(&quot;value&quot;, min);</span>
+
+<span class="fc" id="L44">            min++;</span>
+<span class="fc" id="L45">        }</span>
+<span class="fc" id="L46">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

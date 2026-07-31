@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JobLauncherController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.controller</a> &gt; <span class="el_source">JobLauncherController.java</span></div><h1>JobLauncherController.java</h1><pre class="source lang-java linenums">package com.t24extractor.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.job.parameters.InvalidJobParametersException;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.launch.JobRestartException;
+import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Comparator;
+import java.util.Set;
+import java.util.UUID;
+
+import static com.t24extractor.commons.Constants.RUN_ID;
+
+/**
+ * Lancement et arrêt manuels des extractions.
+ *
+ * &lt;p&gt;Chaque endpoint démarre un job de façon asynchrone et rend la main
+ * immédiatement : la réponse signale la prise en compte, pas la fin du
+ * traitement. Le suivi se fait par les métadonnées Spring Batch.
+ *
+ * &lt;p&gt;Chaque lancement reçoit un {@code run.id} unique, sans quoi Spring Batch
+ * rejetterait une seconde exécution aux mêmes paramètres.
+ *
+ * &lt;p&gt;Tous ces endpoints exigent l'autorité {@code SCOPE_batch:execute}.
+ */
+@RestController
+@RequestMapping(&quot;/api/v1&quot;)
+<span class="fc" id="L40">@Slf4j</span>
+public class JobLauncherController {
+
+    JobOperator jobOperator;
+    JobRepository jobRepository;
+    Job loaderJob;
+    Job mainJob;
+    Job cusJob;
+    Job ftJob;
+    Job billDetailsJob;
+
+    @Autowired
+    public JobLauncherController(JobOperator jobOperator, JobRepository jobRepository,
+                                 @Qualifier(&quot;loadSchema&quot;) Job loaderJob,
+                                 @Qualifier(&quot;t24Job&quot;) Job mainJob,
+                                 @Qualifier(&quot;customer&quot;) Job cusJob,
+                                 @Qualifier(&quot;ftHis&quot;) Job ftJob,
+                                 @Qualifier(&quot;billDetails&quot;) Job billDetailsJob
+<span class="fc" id="L58">                                 ) {</span>
+<span class="fc" id="L59">        this.jobOperator = jobOperator;</span>
+<span class="fc" id="L60">        this.jobRepository = jobRepository;</span>
+<span class="fc" id="L61">        this.loaderJob = loaderJob;</span>
+<span class="fc" id="L62">        this.mainJob = mainJob;</span>
+<span class="fc" id="L63">        this.cusJob = cusJob;</span>
+<span class="fc" id="L64">        this.ftJob = ftJob;</span>
+<span class="fc" id="L65">        this.billDetailsJob = billDetailsJob;</span>
+<span class="fc" id="L66">    }</span>
+
+    /**
+     * Lance l'extraction complète des trois tables.
+     *
+     * @throws IllegalStateException si le job ne peut pas démarrer : instance
+     *         déjà terminée, exécution en cours ou paramètres invalides
+     */
+    @RequestMapping(&quot;/start&quot;)
+    public void handleMain()  {
+
+<span class="fc" id="L77">        JobParameters jobParameters = new JobParametersBuilder()</span>
+<span class="fc" id="L78">                .addString(RUN_ID, UUID.randomUUID().toString())</span>
+<span class="fc" id="L79">                .addLong(&quot;time&quot;, System.currentTimeMillis())</span>
+<span class="fc" id="L80">                .toJobParameters();</span>
+        try {
+<span class="fc" id="L82">            jobOperator.start(mainJob, jobParameters);</span>
+<span class="fc" id="L83">        } catch (JobInstanceAlreadyCompleteException</span>
+                 | JobExecutionAlreadyRunningException
+                 | InvalidJobParametersException
+                 | JobRestartException e) {
+<span class="fc" id="L87">            throw new IllegalStateException(&quot;Unable to start main job&quot;, e);</span>
+<span class="fc" id="L88">        }</span>
+<span class="fc" id="L89">    }</span>
+
+    /**
+     * Lance la seule extraction CUSTOMER.
+     *
+     * @throws IllegalStateException si le job ne peut pas démarrer
+     */
+    @RequestMapping(&quot;/customer/start&quot;)
+    public void handleCustomer()  {
+<span class="fc" id="L98">        JobParameters jobParameters = new JobParametersBuilder()</span>
+<span class="fc" id="L99">                .addString(RUN_ID, UUID.randomUUID().toString())</span>
+<span class="fc" id="L100">                .addLong(&quot;time&quot;, System.currentTimeMillis())</span>
+<span class="fc" id="L101">                .toJobParameters();</span>
+        try {
+<span class="fc" id="L103">            jobOperator.start(cusJob, jobParameters);</span>
+<span class="fc" id="L104">        } catch (JobInstanceAlreadyCompleteException</span>
+                 | JobExecutionAlreadyRunningException
+                 | InvalidJobParametersException
+                 | JobRestartException e) {
+<span class="fc" id="L108">            throw new IllegalStateException(&quot;Unable to start customer job&quot;, e);</span>
+<span class="fc" id="L109">        }</span>
+<span class="fc" id="L110">    }</span>
+
+    /**
+     * Lance la seule extraction FUNDS.TRANSFER$HIS.
+     *
+     * @throws IllegalStateException si le job ne peut pas démarrer
+     */
+    @RequestMapping(&quot;/ft-his/start&quot;)
+    public void handleFt() {
+<span class="fc" id="L119">        JobParameters jobParameters = new JobParametersBuilder()</span>
+<span class="fc" id="L120">                .addString(RUN_ID, UUID.randomUUID().toString())</span>
+<span class="fc" id="L121">                .addLong(&quot;time&quot;, System.currentTimeMillis())</span>
+<span class="fc" id="L122">                .toJobParameters();</span>
+        try {
+<span class="fc" id="L124">            jobOperator.start(ftJob, jobParameters);</span>
+<span class="fc" id="L125">        } catch (JobInstanceAlreadyCompleteException</span>
+                 | JobExecutionAlreadyRunningException
+                 | InvalidJobParametersException
+                 | JobRestartException e) {
+<span class="fc" id="L129">            throw new IllegalStateException(&quot;Unable to start ft job&quot;, e);</span>
+<span class="fc" id="L130">        }</span>
+<span class="fc" id="L131">    }</span>
+
+    /**
+     * Lance la seule extraction AA.BILL.DETAILS.
+     *
+     * &lt;p&gt;Une exécution déjà en cours est signalée dans les journaux mais ne
+     * bloque pas l'appel : c'est Spring Batch qui tranche.
+     *
+     * @throws Exception si le job ne peut pas démarrer
+     */
+    @RequestMapping(&quot;/billdetails/start&quot;)
+    public void handleBillDetails() throws Exception {
+<span class="fc" id="L143">        String jobName = billDetailsJob.getName();</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">        if (!jobRepository.findRunningJobExecutions(jobName).isEmpty()) {</span>
+<span class="fc" id="L145">            log.warn(&quot;{} est déja en cours&quot;, jobName);</span>
+        }
+
+<span class="fc" id="L148">        JobParameters jobParameters = new JobParametersBuilder()</span>
+<span class="fc" id="L149">                .addString(RUN_ID, UUID.randomUUID().toString())</span>
+<span class="fc" id="L150">                .addLong(&quot;time&quot;, System.currentTimeMillis())</span>
+<span class="fc" id="L151">                .toJobParameters();</span>
+<span class="fc" id="L152">        jobOperator.start(billDetailsJob, jobParameters);</span>
+<span class="fc" id="L153">    }</span>
+
+    /**
+     * Demande l'arrêt de l'extraction globale en cours.
+     *
+     * &lt;p&gt;Seule la plus récente des exécutions du job {@code T24} est arrêtée.
+     * L'arrêt est coopératif : Spring Batch interrompt à la fin du chunk courant.
+     *
+     * @throws IllegalArgumentException si l'arrêt échoue
+     */
+    @RequestMapping(&quot;/stop&quot;)
+    public void handleStoppingAllJobs()  {
+<span class="fc" id="L165">        Set&lt;JobExecution&gt; executions = jobRepository.findRunningJobExecutions(&quot;T24&quot;);</span>
+<span class="fc" id="L166">        log.info(&quot;Executions: {}&quot;, executions);</span>
+<span class="fc" id="L167">        executions.stream()</span>
+<span class="fc" id="L168">                .max(Comparator.comparing(JobExecution::getCreateTime))</span>
+<span class="fc" id="L169">                .ifPresent(jobExecution -&gt; {</span>
+                    try {
+<span class="fc" id="L171">                        jobOperator.stop(jobExecution);</span>
+<span class="fc" id="L172">                    } catch (Exception e) {</span>
+<span class="fc" id="L173">                        throw new IllegalArgumentException(&quot;Failed to stop running execution &quot; + jobExecution.getId(), e);</span>
+<span class="fc" id="L174">                    }</span>
+<span class="fc" id="L175">                });</span>
+<span class="fc" id="L176">    }</span>
+
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

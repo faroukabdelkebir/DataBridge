@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MetaDataTable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.model</a> &gt; <span class="el_source">MetaDataTable.java</span></div><h1>MetaDataTable.java</h1><pre class="source lang-java linenums">package com.t24extractor.model;
+
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+import static com.t24extractor.commons.Constants.T24_METADATA;
+
+/**
+ * Déclaration d'un champ multivalué éclaté en table satellite.
+ *
+ * &lt;p&gt;Chaque champ multivalué d'une table BI donne lieu à une table
+ * {@code TABLE#CHAMP}. Cette entité en tient le registre, afin que les
+ * consommateurs BI sachent quelles tables satellites existent.
+ *
+ * &lt;p&gt;L'égalité par valeur est utilisée pour la suppression : désactiver une
+ * colonne supprime la métadonnée reconstruite à l'identique.
+ *
+ * @param tablename        table BI porteuse du champ
+ * @param multivalueFields nom du champ multivalué
+ * @param localref         {@code true} s'il s'agit d'un champ LOCAL.REF
+ */
+@Table(value = T24_METADATA)
+<span class="fc" id="L23">public record MetaDataTable(</span>
+        @Column(&quot;Table_Name&quot;) String tablename,
+        @Column(&quot;MultiValueFields&quot;) String multivalueFields,
+        @Column(&quot;LOCAL_REF&quot;) boolean localref) {
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

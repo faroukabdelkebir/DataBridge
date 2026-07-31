@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>T24DataSourceConfiguration.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.configuration</a> &gt; <span class="el_source">T24DataSourceConfiguration.java</span></div><h1>T24DataSourceConfiguration.java</h1><pre class="source lang-java linenums">package com.t24extractor.configuration;
+
+
+import com.t24extractor.model.CobStatus;
+import com.t24extractor.model.FileControl;
+import com.t24extractor.model.StandardSelectionRecord;
+import com.t24extractor.model.TafjVoc;
+import com.t24extractor.repository.t24_repo.CobRepository;
+import com.t24extractor.repository.t24_repo.FileControlRepository;
+import com.t24extractor.repository.t24_repo.StandardSelectionRepository;
+import com.t24extractor.repository.t24_repo.TafjVocRepository;
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.jdbc.core.JdbcAggregateOperations;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
+import org.springframework.data.jdbc.core.convert.*;
+import org.springframework.data.jdbc.core.dialect.JdbcOracleDialect;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.mapping.DefaultNamingStrategy;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import javax.sql.DataSource;
+
+@Configuration
+@EnableJdbcRepositories(
+        basePackageClasses = {StandardSelectionRecord.class, StandardSelectionRepository.class, FileControl.class, FileControlRepository.class, TafjVoc.class, TafjVocRepository.class, CobRepository.class, CobStatus.class},
+        basePackages = &quot;com.t24extractor.repository.t24_repo&quot;,
+        jdbcAggregateOperationsRef = &quot;t24JdbcAggregateOperations&quot;,
+        transactionManagerRef = &quot;t24TransactionManager&quot;
+)
+
+/**
+ * Pile d'accès à la base T24 (Oracle), source de l'extraction.
+ *
+ * &lt;p&gt;Symétrique de {@link BIDataSourceConfiguration}, mais non {@code @Primary} :
+ * chaque bean doit être réclamé explicitement par son qualificateur
+ * ({@code t24}, {@code jdbcTemplateT24}, {@code t24TransactionManager}), ce qui
+ * évite qu'une injection par défaut ne vise Oracle par mégarde.
+ *
+ * &lt;p&gt;Seuls les dictionnaires T24 sont mappés en entités ; les données métier
+ * sont lues par requêtes directes, leur structure n'étant connue qu'à
+ * l'exécution.
+ */
+<span class="fc" id="L56">public class T24DataSourceConfiguration {</span>
+
+    @Bean
+    @ConfigurationProperties(prefix = &quot;spring.datasource.t24&quot;)
+    public DataSourceProperties t24DataSourceProperties() {
+
+<span class="fc" id="L62">        return new DataSourceProperties();</span>
+    }
+
+    @Bean(name = &quot;t24TransactionManager&quot;)
+    public PlatformTransactionManager t24TransactionManager(@Qualifier(&quot;t24&quot;) DataSource ds) {
+<span class="fc" id="L67">        return new DataSourceTransactionManager(ds);</span>
+    }
+
+    @Bean(name = &quot;t24&quot;)
+    public DataSource t24DataSource() {
+<span class="fc" id="L72">        HikariDataSource ds = new HikariDataSource();</span>
+
+<span class="fc" id="L74">        ds.setJdbcUrl(t24DataSourceProperties().getUrl());</span>
+<span class="fc" id="L75">        ds.setDriverClassName(t24DataSourceProperties().getDriverClassName());</span>
+<span class="fc" id="L76">        ds.setUsername(t24DataSourceProperties().getUsername());</span>
+<span class="fc" id="L77">        ds.setPassword(t24DataSourceProperties().getPassword());</span>
+<span class="fc" id="L78">        ds.setMaximumPoolSize(20);</span>
+<span class="fc" id="L79">        return ds;</span>
+    }
+
+    @Bean(name = &quot;jdbcTemplateT24&quot;)
+    public JdbcTemplate jdbcTemplateLogic(@Qualifier(&quot;t24&quot;) DataSource ds) {
+
+<span class="fc" id="L85">        return new JdbcTemplate(ds);</span>
+    }
+
+
+    @Bean(name = &quot;t24JdbcOperations&quot;)
+    NamedParameterJdbcOperations t24JdbcOperations(@Qualifier(&quot;t24&quot;) DataSource dataSource) {
+<span class="fc" id="L91">        return new NamedParameterJdbcTemplate(dataSource);</span>
+    }
+
+    @Bean(name = &quot;t24Dialect&quot;)
+    public Dialect t24Dialect() {
+<span class="fc" id="L96">        return JdbcOracleDialect.INSTANCE;</span>
+    }
+
+    @Bean(name = &quot;t24JdbcCustomConversions&quot;)
+    public JdbcCustomConversions t24JdbcCustomConversions() {
+<span class="fc" id="L101">        return new JdbcCustomConversions();</span>
+    }
+
+    @Bean(name = &quot;t24MappingContext&quot;)
+    public RelationalMappingContext t24MappingContext() {
+<span class="fc" id="L106">        return new org.springframework.data.jdbc.core.mapping.JdbcMappingContext(DefaultNamingStrategy.INSTANCE);</span>
+    }
+
+    @Bean(name = &quot;t24JdbcConverter&quot;)
+    public JdbcConverter t24JdbcConverter(
+            @Qualifier(&quot;t24MappingContext&quot;) RelationalMappingContext context,
+            @Qualifier(&quot;t24JdbcOperations&quot;) NamedParameterJdbcOperations ops,
+            @Lazy @Qualifier(&quot;t24DataAccessStrategy&quot;) RelationResolver relationResolver,
+            @Qualifier(&quot;t24JdbcCustomConversions&quot;) JdbcCustomConversions conversions
+    ) {
+<span class="fc" id="L116">        return new MappingJdbcConverter(context, relationResolver, conversions, new DefaultJdbcTypeFactory(ops.getJdbcOperations()));</span>
+    }
+
+    @Bean(name = &quot;t24DataAccessStrategy&quot;)
+    public DataAccessStrategy t24DataAccessStrategy(
+            @Qualifier(&quot;t24MappingContext&quot;) RelationalMappingContext context,
+            @Qualifier(&quot;t24JdbcConverter&quot;) JdbcConverter converter,
+            @Qualifier(&quot;t24JdbcOperations&quot;) NamedParameterJdbcOperations ops,
+            @Qualifier(&quot;t24Dialect&quot;) Dialect dialect
+    ) {
+<span class="fc" id="L126">        var sqlGeneratorSource = new SqlGeneratorSource(context, converter, dialect);</span>
+<span class="fc" id="L127">        return new DefaultDataAccessStrategy(</span>
+                sqlGeneratorSource,
+                context,
+                converter,
+                ops,
+                new org.springframework.data.jdbc.core.convert.SqlParametersFactory(context, converter),
+                new org.springframework.data.jdbc.core.convert.InsertStrategyFactory(ops, dialect),
+                org.springframework.data.jdbc.core.convert.QueryMappingConfiguration.EMPTY
+        );
+    }
+
+    @Bean(name = &quot;t24JdbcAggregateOperations&quot;)
+    public JdbcAggregateOperations t24JdbcAggregateOperations(
+            ApplicationContext applicationContext,
+            @Qualifier(&quot;t24MappingContext&quot;) RelationalMappingContext context,
+            @Qualifier(&quot;t24JdbcConverter&quot;) JdbcConverter converter,
+            @Qualifier(&quot;t24DataAccessStrategy&quot;) DataAccessStrategy dataAccessStrategy
+    ) {
+<span class="fc" id="L145">        return new JdbcAggregateTemplate(applicationContext, context, converter, dataAccessStrategy);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

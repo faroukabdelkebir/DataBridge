@@ -1,0 +1,144 @@
+{
+  "groups": [
+    {
+      "name": "spring.datasource.bi",
+      "type": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties",
+      "sourceType": "com.t24extractor.configuration.BIDataSourceConfiguration",
+      "sourceMethod": "biDataSourceProperties()"
+    },
+    {
+      "name": "spring.datasource.bi.xa",
+      "type": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties$Xa",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties",
+      "sourceMethod": "getXa()"
+    },
+    {
+      "name": "spring.datasource.t24",
+      "type": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties",
+      "sourceType": "com.t24extractor.configuration.T24DataSourceConfiguration",
+      "sourceMethod": "t24DataSourceProperties()"
+    },
+    {
+      "name": "spring.datasource.t24.xa",
+      "type": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties$Xa",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties",
+      "sourceMethod": "getXa()"
+    }
+  ],
+  "properties": [
+    {
+      "name": "spring.datasource.bi.driver-class-name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.embedded-database-connection",
+      "type": "org.springframework.boot.jdbc.EmbeddedDatabaseConnection",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.generate-unique-name",
+      "type": "java.lang.Boolean",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.jndi-name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.password",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.type",
+      "type": "java.lang.Class<? extends javax.sql.DataSource>",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.url",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.username",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.bi.xa.data-source-class-name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties$Xa"
+    },
+    {
+      "name": "spring.datasource.bi.xa.properties",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties$Xa"
+    },
+    {
+      "name": "spring.datasource.t24.driver-class-name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.embedded-database-connection",
+      "type": "org.springframework.boot.jdbc.EmbeddedDatabaseConnection",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.generate-unique-name",
+      "type": "java.lang.Boolean",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.jndi-name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.password",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.type",
+      "type": "java.lang.Class<? extends javax.sql.DataSource>",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.url",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.username",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties"
+    },
+    {
+      "name": "spring.datasource.t24.xa.data-source-class-name",
+      "type": "java.lang.String",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties$Xa"
+    },
+    {
+      "name": "spring.datasource.t24.xa.properties",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "sourceType": "org.springframework.boot.jdbc.autoconfigure.DataSourceProperties$Xa"
+    }
+  ],
+  "hints": [],
+  "ignored": {
+    "properties": []
+  }
+}

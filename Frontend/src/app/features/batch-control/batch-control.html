@@ -1,0 +1,155 @@
+<header class="page-head">
+  <h1 class="page-title">{{ 'batch.title' | translate }}</h1>
+  <span class="live-dot" [class.on]="streamConnected()"></span>
+</header>
+
+<!-- ═══ Pilotage des traitements ═══ -->
+<section class="batch-grid">
+  @for (job of jobs; track job.key) {
+    <div class="surface-card page-card batch-card">
+      <div class="batch-card-head">
+        <i [class]="job.icon"></i>
+        <div>
+          <h3>{{ job.labelKey | translate }}</h3>
+          <p>{{ job.descKey | translate }}</p>
+          <span class="mono job-name">{{ job.jobName }}</span>
+        </div>
+      </div>
+      <div class="batch-card-foot">
+        @if (isRunning(job)) {
+          <p-tag [value]="'batch.running' | translate" severity="info" icon="pi pi-spin pi-sync" />
+        } @else {
+          <p-button [label]="'batch.start' | translate" icon="pi pi-play" size="small"
+                    [loading]="launching() === job.key"
+                    [disabled]="launching() !== null"
+                    (onClick)="askStart(job)" />
+        }
+      </div>
+    </div>
+  }
+</section>
+
+<!-- Arrêt d'urgence : ne concerne QUE le job principal T24 -->
+<section class="surface-card page-card" style="margin-top:1.25rem; display:flex;
+         align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+  <div>
+    <h3 class="card-title" style="margin-bottom:.25rem;">{{ 'batch.stopTitle' | translate }}</h3>
+    <p style="margin:0; opacity:.65; font-size:.88rem;">{{ 'batch.stopHint' | translate }}</p>
+  </div>
+  <p-button [label]="'batch.stop' | translate" icon="pi pi-stop-circle" severity="danger"
+            [outlined]="true" [loading]="stopping()"
+            [disabled]="!mainRunning()" (onClick)="askStop()" />
+</section>
+
+<!-- ═══ Planification automatique ═══ -->
+<section class="surface-card page-card" style="margin-top:1.25rem;">
+  <div class="section-head" style="margin-bottom:.35rem;">
+    <h3 class="card-title" style="margin:0;">
+      <i class="pi pi-clock" style="margin-right:.45rem;"></i>{{ 'batch.scheduler.title' | translate }}
+    </h3>
+    <p-button icon="pi pi-refresh" [rounded]="true" [text]="true"
+              [loading]="configsLoading()" (onClick)="loadConfigs()" />
+  </div>
+  <p style="margin:0 0 1rem; opacity:.65; font-size:.88rem;">
+    {{ 'batch.scheduler.hint' | translate }}
+  </p>
+
+  <p-table [value]="configs()" [loading]="configsLoading()" size="small">
+    <ng-template #header>
+      <tr>
+        <th>{{ 'batch.scheduler.table' | translate }}</th>
+        <th>{{ 'batch.scheduler.load' | translate }}</th>
+        <th style="width:9rem;">{{ 'batch.scheduler.enabled' | translate }}</th>
+        <th style="width:9rem;">{{ 'batch.scheduler.auto' | translate }}</th>
+        <th style="width:10rem;">{{ 'batch.scheduler.time' | translate }}</th>
+        <th>{{ 'batch.scheduler.status' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-cfg>
+      <tr [style.opacity]="cfg.enabled ? 1 : .55">
+        <td class="mono">{{ cfg.id }}</td>
+        <td>{{ cfg.chargement ?? '—' }}</td>
+        <td>
+          <p-toggleswitch [ngModel]="cfg.enabled"
+                          [disabled]="pendingConfig() === cfg.id"
+                          (ngModelChange)="toggleConfigEnabled(cfg, $event)" />
+        </td>
+        <td>
+          <p-toggleswitch [ngModel]="cfg.scheduler"
+                          [disabled]="pendingConfig() === cfg.id || !cfg.enabled"
+                          (ngModelChange)="toggleConfigScheduler(cfg, $event)" />
+        </td>
+        <td>
+          <input type="time" style="background:transparent; border:1px solid var(--app-border);
+                 border-radius:6px; padding:.35rem .5rem; color:inherit; font-family:inherit;"
+                 [value]="cfg.schedulerTime ?? ''"
+                 [disabled]="pendingConfig() === cfg.id || !cfg.enabled"
+                 (change)="changeSchedulerTime(cfg, $any($event.target).value)" />
+        </td>
+        <td>
+          @if (cfg.enabled && cfg.scheduler && cfg.schedulerTime) {
+            <p-tag [value]="('batch.scheduler.daily' | translate) + ' ' + cfg.schedulerTime"
+                   severity="success" icon="pi pi-clock" />
+          } @else if (!cfg.enabled) {
+            <p-tag [value]="'batch.scheduler.disabled' | translate" severity="secondary" />
+          } @else {
+            <p-tag [value]="'batch.scheduler.manual' | translate" severity="warn" icon="pi pi-hand-point-up" />
+          }
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="6" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</section>
+
+<!-- ═══ Colonnes sources ═══ -->
+<section class="surface-card page-card" style="margin-top:1.25rem;">
+  <div class="section-head" style="margin-bottom:1rem;">
+    <h3 class="card-title" style="margin:0;">{{ 'batch.columnsTitle' | translate }}</h3>
+    <p-select [options]="tables()" [(ngModel)]="selectedTable"
+              [filter]="true" (onChange)="loadColumns()" />
+  </div>
+
+  <p-message severity="warn" [text]="'batch.columnsWarning' | translate"
+             styleClass="w-full" [style]="{ display: 'block', 'margin-bottom': '1rem' }" />
+
+  <p-table [value]="columns()" [loading]="columnsLoading()"
+           [paginator]="true" [rows]="15" size="small"
+           [globalFilterFields]="['columnName']">
+    <ng-template #header>
+      <tr>
+        <th>{{ 'schema.column' | translate }}</th>
+        <th>{{ 'schema.type' | translate }}</th>
+        <th>SS Tag</th>
+        <th>{{ 'batch.multiValue' | translate }}</th>
+        <th>{{ 'batch.indexed' | translate }}</th>
+        <th style="width:8rem;">{{ 'batch.extracted' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-col>
+      <tr [style.opacity]="col.enabled ? 1 : .55">
+        <td class="mono">{{ col.columnName }}</td>
+        <td>{{ col.dataType }}</td>
+        <td class="mono">{{ col.ssTag ?? '—' }}</td>
+        <td>
+          @if (col.singleMult === 'M') { <p-tag value="MV" severity="info" /> } @else { — }
+        </td>
+        <td>
+          @if (col.indexed) { <i class="pi pi-check ok-text"></i> } @else { — }
+        </td>
+        <td>
+          <p-toggleswitch [ngModel]="col.enabled"
+                          [disabled]="pendingColumn() === col.id"
+                          (ngModelChange)="toggleColumn(col, $event)" />
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="6" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</section>
+
+<p-confirmDialog />

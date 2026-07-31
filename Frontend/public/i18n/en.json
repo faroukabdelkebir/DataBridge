@@ -1,0 +1,586 @@
+{
+  "brand": "DataBridge Banking",
+  "language": "Language",
+  "common": {
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "fullName": "Full name",
+    "search": "Search…",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "loadError": "Unable to load data. Make sure the services are running.",
+    "noData": "No data available",
+    "confirm": "Confirmation",
+    "cancel": "Cancel",
+    "save": "Save",
+    "error": "An error occurred",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "transactions": "Transactions",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout",
+    "jobs": "Jobs",
+    "alerts": "Alerts",
+    "sla": "SLA",
+    "reconciliation": "Reconciliation",
+    "schema": "Schema",
+    "users": "Users",
+    "assistant": "AI Assistant",
+    "batch": "Batch control",
+    "analytics": "Analytics"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Access your dashboard",
+      "submit": "Sign in",
+      "noAccount": "No account yet?",
+      "createAccount": "Create an account",
+      "forgotPassword": "Forgot password?",
+      "error": "Invalid credentials. Please try again.",
+      "serverError": "Service unavailable. Please try again."
+    },
+    "forgot": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email to receive a reset link.",
+      "submit": "Send link",
+      "sent": "If an account exists for this email, a reset link has just been sent.",
+      "error": "Could not send. Please try again.",
+      "backToLogin": "Back to sign in"
+    },
+    "reset": {
+      "title": "Reset password",
+      "subtitle": "Choose a new password.",
+      "submit": "Reset",
+      "success": "Password reset. You can now sign in.",
+      "error": "Could not reset. Please try again.",
+      "invalidToken": "This link is invalid or has expired. Request a new one.",
+      "missingToken": "Reset link is missing or incomplete.",
+      "requestNew": "Request a new link"
+    },
+
+    "register": {
+      "title": "Create an account",
+      "subtitle": "It only takes a few seconds",
+      "submit": "Create my account",
+      "haveAccount": "Already registered?",
+      "signin": "Sign in",
+      "error": "Registration failed. Please try again."
+    },
+    "validation": {
+      "emailRequired": "A valid email is required.",
+      "passwordMin4": "At least 4 characters.",
+      "passwordMin6": "At least 6 characters.",
+      "fullNameMin3": "At least 3 characters.",
+      "usernameRequired": "A username is required (at least 3 characters)",
+      "passwordMin8": "The password must be at least 8 characters long",
+      "mismatch": "Passwords do not match."
+    },
+    "welcome": "Welcome",
+    "accountCreated": "Account created",
+    "sessionExpired": "Your session has expired. Please sign in again."
+  },
+  "errors": {
+    "networkTitle": "Connection failed",
+    "network": "The server is unreachable. Check your connection or the status of the services.",
+    "forbiddenTitle": "Access denied",
+    "forbidden": "You do not have the required permissions for this action.",
+    "serverTitle": "Server error",
+    "server": "An internal error occurred. Please try again in a few moments.",
+    "rateLimitTitle": "Too many requests",
+    "rateLimit": "AI agents are limited to 10 calls per minute. Please wait a moment."
+  },
+  "profile": {
+    "title": "My profile",
+    "infoTab": "Information",
+    "securityTab": "Security",
+    "auditTab": "Login audit",
+    "changePwd": "Change password",
+    "currentPwd": "Current password",
+    "newPwd": "New password",
+    "confirmPwd": "Confirmation",
+    "pwdMismatch": "Passwords do not match",
+    "pwdChanged": "Password changed successfully",
+    "sessions": "Active sessions",
+    "sessionsHint": "Logs out all devices, including this one. You will need to sign in again.",
+    "logoutAll": "Log out all sessions",
+    "eventType": "Event type",
+    "event": "Event",
+    "detail": "Detail",
+    "date": "Date"
+  },
+  "dashboard": {
+    "title": "T24 Extraction Monitoring",
+    "subtitle": "Overview of batch processing, volumes and alerts",
+    "businessDate": "Active business date",
+    "kpi": {
+      "running": "Running jobs",
+      "completed": "Completed today",
+      "failed": "Failed today",
+      "success7d": "Success rate (7 d)"
+    },
+    "trendTitle": "Daily volumes (7 days)",
+    "breakdownTitle": "Row breakdown by table",
+    "chart": {
+      "rowsRead": "Rows read",
+      "rowsWritten": "Rows written",
+      "successRate": "Success rate",
+      "rowsByTable": "Rows by table"
+    },
+    "liveJobs": "Running jobs",
+    "streamOn": "Real-time stream connected",
+    "streamOff": "Real-time stream disconnected — reconnecting…",
+    "noLiveJobs": "No jobs currently running",
+    "recentExecutions": "Recent executions",
+    "activeAlerts": "Active alerts",
+    "categoryTitle": "Sales by category",
+    "revenueLegend": "Revenue (€)",
+    "ordersLegend": "Orders",
+    "axisOrders": "Ord"
+  },
+  "jobs": {
+    "name": "Job",
+    "status": "Status",
+    "startTime": "Start",
+    "duration": "Duration",
+    "read": "Read",
+    "written": "Written",
+    "skipped": "Skipped",
+    "throughput": "Throughput",
+    "title": "Job history",
+    "reconciliation": "Reconciliation",
+    "viewSteps": "View steps",
+    "searchPlaceholder": "Search a job…",
+    "allStatuses": "All statuses",
+    "export": "Export CSV",
+    "state": {
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "STARTED": "Running",
+      "STARTING": "Starting",
+      "STOPPING": "Stopping",
+      "STOPPED": "Stopped",
+      "ABANDONED": "Abandoned",
+      "UNKNOWN": "Unknown"
+    }
+  },
+  "steps": {
+    "name": "Step",
+    "commits": "Commits",
+    "rollbacks": "Rollbacks"
+  },
+  "alerts": {
+    "title": "Active alerts",
+    "severity": "Severity",
+    "type": "Type",
+    "message": "Message",
+    "triggeredAt": "Triggered at",
+    "resolve": "Acknowledge",
+    "resolved": "Alert acknowledged",
+    "none": "No active alerts — all clear",
+    "sev": {
+      "CRITICAL": "Critical",
+      "WARNING": "Warning",
+      "INFO": "Info"
+    },
+    "kind": {
+      "consecutiveFailure": "Consecutive failures",
+      "jobFailure": "Job failure",
+      "slaBreach": "SLA breached",
+      "reconciliation": "Reconciliation gap",
+      "schemaDrift": "Schema change"
+    },
+    "msg": {
+      "consecutiveFailure": "{{count}} consecutive failures detected on {{job}}",
+      "jobFailure": "Last run of {{job}} failed",
+      "slaBreach": "{{job}} completed {{minutes}} min late",
+      "reconciliationKo": "Table {{table}}: Oracle={{oracle}}, SQLServer={{sql}} (rate={{rate}} %)",
+      "reconciliationWarn": "Table {{table}}: reconciliation rate at {{rate}} %",
+      "schemaDrift": "{{count}} schema change(s) detected in the last 24 h"
+    }
+  },
+  "sla": {
+    "title": "SLA tracking",
+    "deadline": "Deadline",
+    "lastCompletion": "Last completion",
+    "status": "Status",
+    "lateBy": "Late by"
+  },
+  "recon": {
+    "title": "Volume reconciliation",
+    "table": "Table",
+    "businessDate": "Business date",
+    "delta": "Delta",
+    "rate": "Rate"
+  },
+  "schema": {
+    "title": "Source schema",
+    "summaryTab": "By table",
+    "auditTab": "Change audit",
+    "totalCols": "Columns",
+    "enabledCols": "Enabled",
+    "indexedCols": "Indexed",
+    "mvCols": "Multi-value",
+    "column": "Column",
+    "type": "Type",
+    "enabledChange": "Enabling",
+    "indexedChange": "Indexing",
+    "updatedBy": "Updated by",
+    "updatedOn": "Updated on"
+  },
+  "users": {
+    "title": "User management",
+    "create": "New user",
+    "edit": "Edit user",
+    "role": "Role",
+    "active": "Status",
+    "enabled": "Active",
+    "disabled": "Disabled",
+    "createdAt": "Created on",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "saved": "User saved",
+    "leaveEmpty": "leave empty to keep unchanged",
+    "passwordPolicy": "8+ characters, uppercase, lowercase, digit and special character (@$!%*?&)",
+    "confirmDelete": "Permanently delete {{name}}?"
+  },
+  "assistant": {
+    "title": "AI Assistant",
+    "model": "Model",
+    "serviceDown": "The AI Agents service is unreachable. Make sure it is running (port 65015).",
+    "ollamaDown": "Ollama is not available: agents cannot be run.",
+    "qualityTab": "Data quality",
+    "schedulerTab": "Scheduling",
+    "historyTab": "Report history",
+    "quickScore": "Quick score",
+    "fullAudit": "Full audit",
+    "running": "Analysis in progress",
+    "auditHint": "The full audit makes the model work in depth: expect up to several minutes depending on the machine.",
+    "interpretation": "Agent summary",
+    "actions": "Priority actions",
+    "current": "Current score",
+    "maxGain": "Max gain",
+    "action": "Recommended action",
+    "computePlan": "Compute the scheduling plan",
+    "planComputing": "The agent is analyzing the execution history and computing the optimal plan… the page updates automatically.",
+    "computedAt": "Computed on",
+    "plan": "Recommended plan",
+    "target": "Target",
+    "agentUnavailable": "Agent unavailable (Ollama stopped?)",
+    "reportDetail": "Report detail",
+    "exportPdf": "Export to PDF",
+    "pdfViewer": "Report PDF preview",
+    "download": "Download",
+    "viewRaw": "Raw data",
+    "viewFriendly": "Readable view"
+  },
+  "batch": {
+    "title": "Extraction control",
+    "main": "Full T24 extraction",
+    "mainDesc": "Main chain: all active tables",
+    "customer": "Customers",
+    "customerDesc": "Extraction of the CUSTOMER table",
+    "ftHis": "Historized transfers",
+    "ftHisDesc": "Extraction of FUNDS.TRANSFER$HIS",
+    "bills": "Billing details",
+    "billsDesc": "Extraction of AA.BILL.DETAILS",
+    "start": "Start",
+    "running": "Running",
+    "started": "Job started",
+    "startFailed": "Start failed",
+    "confirmStart": "Start the “{{name}}” job now?",
+    "stopTitle": "Stopping the main job",
+    "stopHint": "Sends a graceful stop request to the running T24 execution. Other jobs are not affected.",
+    "stop": "Stop T24",
+    "confirmStop": "Request the stop of the running T24 extraction? The job will stop at the end of the current chunk.",
+    "stopRequested": "Stop request sent",
+    "columnsTitle": "Columns extracted per table",
+    "columnsWarning": "Disabling a column excludes it from future extractions. Data already loaded is not deleted.",
+    "multiValue": "Multi-value",
+    "indexed": "Indexed",
+    "extracted": "Extracted",
+    "scheduler": {
+      "title": "Automatic scheduling",
+      "hint": "Each enabled extraction runs once a day at the chosen time. The scheduler re-reads this configuration every minute: changes apply without redeployment.",
+      "table": "Extraction",
+      "load": "Load type",
+      "enabled": "Enabled",
+      "auto": "Scheduled",
+      "time": "Time (HH:mm)",
+      "status": "Status",
+      "daily": "Daily at",
+      "manual": "Manual only",
+      "disabled": "Extraction disabled",
+      "saved": "Schedule saved"
+    }
+  },
+  "kpi": {
+    "revenue": "Revenue",
+    "orders": "Orders",
+    "customers": "Active customers",
+    "conversion": "Conversion rate"
+  },
+  "category": {
+    "electronics": "Electronics",
+    "fashion": "Fashion",
+    "home": "Home",
+    "sport": "Sport",
+    "other": "Other"
+  },
+  "table": {
+    "id": "ID",
+    "customer": "Customer",
+    "category": "Category",
+    "amount": "Amount",
+    "date": "Date",
+    "status": "Status",
+    "action": "Action",
+    "exportCsv": "Export CSV",
+    "empty": "No transaction found.",
+    "pageReport": "{first}–{last} of {totalRecords}"
+  },
+  "status": {
+    "completed": "Completed",
+    "pending": "Pending",
+    "failed": "Failed"
+  },
+  "primeng": {
+    "emptyMessage": "No results found",
+    "clear": "Clear",
+    "apply": "Apply"
+  },
+  "analytics": {
+    "title": "Business analytics",
+    "question": "How is banking activity trending, and how is the portfolio distributed?",
+    "filter": {
+      "year": "Analysis year",
+      "allYears": "Full history"
+    },
+    "kpi": {
+      "clients": "Customers",
+      "transfers": "Transfers",
+      "bills": "Bills",
+      "officers": "Officers",
+      "avgAge": "Average age"
+    },
+    "insight": {
+      "leader": "Leading officer",
+      "concentration": "Portfolio concentration",
+      "peak": "Activity peak",
+      "leaderDetail": "{{count}} clients · {{pct}} %",
+      "concentrationDetail": "Top 5 / {{count}} officers",
+      "peakDetail": "{{count}} transfers"
+    },
+    "value": {
+      "SETTLED": "Settled",
+      "DUE": "Due",
+      "AGING": "Aging",
+      "ISSUED": "Issued",
+      "REPAID": "Repaid",
+      "UNPAID": "Unpaid",
+      "PAYMENT": "Payment",
+      "MALE": "Male",
+      "FEMALE": "Female"
+    },
+    "chart": {
+      "monthlyTitle": "Transfers per month — Y vs Y-1",
+      "currentYear": "Selected year",
+      "previousYear": "Previous year",
+      "pyramidTitle": "Customers by age band",
+      "agePyramid": "Age bands",
+      "officersTitle": "Top 10 officers — managed customers",
+      "clients": "Customers",
+      "agingTitle": "Receivables aging"
+    },
+    "table": {
+      "title": "Performance by officer",
+      "officer": "Officer",
+      "clients": "Customers",
+      "avgAge": "Avg age",
+      "share": "Portfolio share"
+    },
+    "empty": {
+      "transfers": "No transfers in the selected period.",
+      "pyramid": "Ages unavailable — enable the AGE column and rerun the extraction."
+    },
+    "months": {
+      "1": "Jan",
+      "2": "Feb",
+      "3": "Mar",
+      "4": "Apr",
+      "5": "May",
+      "6": "Jun",
+      "7": "Jul",
+      "8": "Aug",
+      "9": "Sep",
+      "10": "Oct",
+      "11": "Nov",
+      "12": "Dec"
+    },
+    "tabs": {
+      "billing": "Receivables",
+      "customers": "Customers",
+      "overview": "Overview",
+      "flows": "Flows"
+    },
+    "billing": {
+      "title": "Receivables & billing",
+      "question": "What is the state of receivables: billing, outstanding amounts and recovery?",
+      "kpi": {
+        "bills": "Bills",
+        "billed": "Billed amount (TND)",
+        "outstanding": "Outstanding (TND)",
+        "paidPct": "Settled bills (%)",
+        "delay": "Settlement delay (d)"
+      },
+      "insight": {
+        "peak": "Record billing month",
+        "paid": "Settled bills",
+        "delay": "Average settlement delay",
+        "peakDetail": "{{count}} invoices issued",
+        "paidDetail": "settled invoices",
+        "delayAfter": "past due on average",
+        "delayBefore": "before due date on average"
+      },
+      "chart": {
+        "monthlyTitle": "Bills issued per month — Y vs Y-1",
+        "amountLine": "Billed amount (TND)",
+        "recoveryTitle": "Recovery rate",
+        "recoveryCaption": "Share of billed amount already collected",
+        "breakdownTitle": "Receivables segmentation",
+        "bills": "Bills"
+      },
+      "dimension": {
+        "aging": "Aging",
+        "settle": "Settlement",
+        "status": "Status",
+        "type": "Type",
+        "method": "Payment method"
+      },
+      "table": {
+        "title": "Segmentation detail",
+        "category": "Category",
+        "bills": "Bills",
+        "outstanding": "Outstanding",
+        "share": "Share"
+      },
+      "unlock": {
+        "title": "Recovery tracking is waiting for your data",
+        "hint": "Enable the missing columns in the Schema screen, then rerun a full extraction: outstanding amounts, recovery rate, aging and settlement delays will appear automatically."
+      },
+      "empty": {
+        "recovery": "Enable OR_TOTAL_AMOUNT and OS_TOTAL_AMOUNT then rerun the extraction to measure recovery.",
+        "breakdown": "Enable AGING_STATUS, SETTLE_STATUS, BILL_STATUS, BILL_TYPE or PAYMENT_METHOD to segment receivables."
+      }
+    },
+    "customers": {
+      "title": "Customer portfolio",
+      "question": "Who are the bank's customers, and how is the portfolio growing?",
+      "filter": {
+        "acquisitionYear": "Onboarding year"
+      },
+      "kpi": {
+        "clients": "Customers",
+        "avgAge": "Average age",
+        "newCustomers": "New customers",
+        "womenPct": "Women (%)",
+        "nationalities": "Nationalities",
+        "officers": "Officers"
+      },
+      "insight": {
+        "generation": "Dominant generation",
+        "core": "Active core of the portfolio",
+        "peak": "Acquisition peak",
+        "migration": "Migrated records",
+        "generationDetail": "{{count}} clients · {{pct}} %",
+        "coreDetail": "ages 25–54",
+        "peakDetail": "{{count}} new clients",
+        "migrationDetail": "records from the initial migration"
+      },
+      "chart": {
+        "histogramTitle": "Age distribution (5-year bins)",
+        "generationsTitle": "Customers by generation",
+        "acquisitionTitle": "New customers per month — Y vs Y-1",
+        "breakdownTitle": "Portfolio segmentation",
+        "clients": "Customers"
+      },
+      "dimension": {
+        "sector": "Sector",
+        "nationality": "Nationality",
+        "gender": "Gender",
+        "target": "Segment",
+        "status": "Status"
+      },
+      "table": {
+        "title": "Breakdown by generation",
+        "generation": "Generation",
+        "clients": "Customers",
+        "share": "Portfolio share"
+      },
+      "unlock": {
+        "title": "Customer segmentation is waiting for your data",
+        "hint": "Enable the missing columns in the Schema screen, then rerun a full extraction: sectors, nationalities, gender and monthly acquisition will appear automatically."
+      },
+      "empty": {
+        "acquisition": "Enable DATE_AC_OPND and rerun the extraction to track new-customer acquisition.",
+        "breakdown": "Enable SECTOR, NATIONALITY, GENDER, TARGET or CUSTOMER_STATUS to segment the portfolio."
+      }
+    },
+    "days": {
+      "0": "Mon",
+      "1": "Tue",
+      "2": "Wed",
+      "3": "Thu",
+      "4": "Fri",
+      "5": "Sat",
+      "6": "Sun"
+    },
+    "flows": {
+      "title": "Transfer flows",
+      "question": "How are flows trending in volume and value, and when is the bank most active?",
+      "kpi": {
+        "transfers": "Transfers",
+        "amount": "Total amount (TND)",
+        "avgTicket": "Average ticket (TND)",
+        "currencies": "Currencies",
+        "types": "Transaction types"
+      },
+      "insight": {
+        "currency": "Dominant currency",
+        "type": "Dominant transaction type",
+        "ticket": "Average ticket",
+        "currencyDetail": "{{pct}} % · {{count}} operations",
+        "typeDetail": "{{pct}} % of flows"
+      },
+      "chart": {
+        "monthlyTitle": "Transfers per month — volume and value",
+        "amountLine": "Amount (TND)",
+        "currencyTitle": "Breakdown by currency",
+        "heatmapTitle": "Activity by month and weekday"
+      },
+      "table": {
+        "title": "Performance by transaction type",
+        "type": "Type",
+        "ops": "Operations",
+        "amount": "Amount",
+        "avgTicket": "Avg ticket",
+        "share": "Flow share"
+      },
+      "unlock": {
+        "title": "More analyses are waiting for your data",
+        "hint": "Enable the missing columns in the Schema screen, then rerun a full extraction: amounts, currencies and transaction types will appear automatically.",
+        "action": "Open Schema"
+      },
+      "empty": {
+        "currency": "Enable DEBIT_CURRENCY and rerun the extraction to see the currency breakdown.",
+        "type": "Enable TRANSACTION_TYPE and rerun the extraction to analyse transaction types."
+      }
+    }
+  }
+}

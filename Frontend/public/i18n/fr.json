@@ -1,0 +1,585 @@
+{
+  "brand": "DataBridge Bancaire",
+  "language": "Langue",
+  "common": {
+    "email": "Email",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "fullName": "Nom complet",
+    "search": "Rechercher…",
+    "refresh": "Actualiser",
+    "retry": "Réessayer",
+    "loadError": "Impossible de charger les données. Vérifiez que les services sont démarrés.",
+    "noData": "Aucune donnée disponible",
+    "confirm": "Confirmation",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "error": "Une erreur est survenue",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "transactions": "Transactions",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "jobs": "Traitements",
+    "alerts": "Alertes",
+    "sla": "SLA",
+    "reconciliation": "Réconciliation",
+    "schema": "Schéma",
+    "users": "Utilisateurs",
+    "assistant": "Assistant IA",
+    "batch": "Pilotage batch",
+    "analytics": "Analytique"
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "subtitle": "Accédez à votre tableau de bord",
+      "submit": "Se connecter",
+      "noAccount": "Pas encore de compte ?",
+      "createAccount": "Créer un compte",
+      "forgotPassword": "Mot de passe oublié ?",
+      "error": "Identifiants invalides. Réessayez.",
+      "serverError": "Service indisponible, veuillez réessayer."
+    },
+    "forgot": {
+      "title": "Mot de passe oublié",
+      "subtitle": "Entrez votre email pour recevoir un lien de réinitialisation.",
+      "submit": "Envoyer le lien",
+      "sent": "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé.",
+      "error": "Envoi impossible. Veuillez réessayer.",
+      "backToLogin": "Retour à la connexion"
+    },
+    "reset": {
+      "title": "Réinitialiser le mot de passe",
+      "subtitle": "Choisissez un nouveau mot de passe.",
+      "submit": "Réinitialiser",
+      "success": "Mot de passe réinitialisé. Vous pouvez vous connecter.",
+      "error": "Réinitialisation impossible. Veuillez réessayer.",
+      "invalidToken": "Ce lien est invalide ou a expiré. Demandez-en un nouveau.",
+      "missingToken": "Lien de réinitialisation manquant ou incomplet.",
+      "requestNew": "Demander un nouveau lien"
+    },
+    "register": {
+      "title": "Créer un compte",
+      "subtitle": "Quelques secondes suffisent",
+      "submit": "Créer mon compte",
+      "haveAccount": "Déjà inscrit ?",
+      "signin": "Se connecter",
+      "error": "Inscription impossible. Réessayez."
+    },
+    "validation": {
+      "emailRequired": "Email valide requis.",
+      "passwordMin4": "4 caractères minimum.",
+      "passwordMin6": "6 caractères minimum.",
+      "fullNameMin3": "3 caractères minimum.",
+      "usernameRequired": "Le nom d'utilisateur est requis (3 caractères min.)",
+      "passwordMin8": "Le mot de passe doit contenir au moins 8 caractères",
+      "mismatch": "Les mots de passe ne correspondent pas."
+    },
+    "welcome": "Bienvenue",
+    "accountCreated": "Compte créé",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+  },
+  "errors": {
+    "networkTitle": "Connexion impossible",
+    "network": "Le serveur est injoignable. Vérifiez votre connexion ou l'état des services.",
+    "forbiddenTitle": "Accès refusé",
+    "forbidden": "Vous n'avez pas les droits nécessaires pour cette action.",
+    "serverTitle": "Erreur serveur",
+    "server": "Une erreur interne est survenue. Réessayez dans quelques instants.",
+    "rateLimitTitle": "Trop de requêtes",
+    "rateLimit": "Les agents IA sont limités à 10 appels par minute. Patientez un instant."
+  },
+  "profile": {
+    "title": "Mon profil",
+    "infoTab": "Informations",
+    "securityTab": "Sécurité",
+    "auditTab": "Audit des connexions",
+    "changePwd": "Changer le mot de passe",
+    "currentPwd": "Mot de passe actuel",
+    "newPwd": "Nouveau mot de passe",
+    "confirmPwd": "Confirmation",
+    "pwdMismatch": "Les mots de passe ne correspondent pas",
+    "pwdChanged": "Mot de passe modifié avec succès",
+    "sessions": "Sessions actives",
+    "sessionsHint": "Déconnecte tous les appareils, y compris celui-ci. Vous devrez vous reconnecter.",
+    "logoutAll": "Déconnecter toutes les sessions",
+    "eventType": "Type d'événement",
+    "event": "Événement",
+    "detail": "Détail",
+    "date": "Date"
+  },
+  "dashboard": {
+    "title": "Supervision des extractions T24",
+    "subtitle": "Vue d'ensemble des traitements batch, volumes et alertes",
+    "businessDate": "Date métier active",
+    "kpi": {
+      "running": "Jobs en cours",
+      "completed": "Complétés aujourd'hui",
+      "failed": "Échecs aujourd'hui",
+      "success7d": "Taux de succès (7 j)"
+    },
+    "trendTitle": "Volumes journaliers (7 jours)",
+    "breakdownTitle": "Répartition des lignes par table",
+    "chart": {
+      "rowsRead": "Lignes lues",
+      "rowsWritten": "Lignes écrites",
+      "successRate": "Taux de succès",
+      "rowsByTable": "Lignes par table"
+    },
+    "liveJobs": "Traitements en cours",
+    "streamOn": "Flux temps réel connecté",
+    "streamOff": "Flux temps réel déconnecté — reconnexion…",
+    "noLiveJobs": "Aucun traitement en cours d'exécution",
+    "recentExecutions": "Exécutions récentes",
+    "activeAlerts": "Alertes actives",
+    "categoryTitle": "Ventes par catégorie",
+    "revenueLegend": "Revenus (€)",
+    "ordersLegend": "Commandes",
+    "axisOrders": "Cmd"
+  },
+  "jobs": {
+    "name": "Traitement",
+    "status": "Statut",
+    "startTime": "Début",
+    "duration": "Durée",
+    "read": "Lues",
+    "written": "Écrites",
+    "skipped": "Ignorées",
+    "throughput": "Débit",
+    "title": "Historique des traitements",
+    "reconciliation": "Réconciliation",
+    "viewSteps": "Voir les étapes",
+    "searchPlaceholder": "Rechercher un traitement…",
+    "allStatuses": "Tous les statuts",
+    "export": "Exporter CSV",
+    "state": {
+      "COMPLETED": "Terminé",
+      "FAILED": "Échec",
+      "STARTED": "En cours",
+      "STARTING": "Démarrage",
+      "STOPPING": "Arrêt",
+      "STOPPED": "Arrêté",
+      "ABANDONED": "Abandonné",
+      "UNKNOWN": "Inconnu"
+    }
+  },
+  "steps": {
+    "name": "Étape",
+    "commits": "Commits",
+    "rollbacks": "Rollbacks"
+  },
+  "alerts": {
+    "title": "Alertes actives",
+    "severity": "Sévérité",
+    "type": "Type",
+    "message": "Message",
+    "triggeredAt": "Déclenchée le",
+    "resolve": "Acquitter",
+    "resolved": "Alerte acquittée",
+    "none": "Aucune alerte active — tout est au vert",
+    "sev": {
+      "CRITICAL": "Critique",
+      "WARNING": "Avertissement",
+      "INFO": "Information"
+    },
+    "kind": {
+      "consecutiveFailure": "Échecs consécutifs",
+      "jobFailure": "Échec du traitement",
+      "slaBreach": "Délai SLA dépassé",
+      "reconciliation": "Écart de réconciliation",
+      "schemaDrift": "Modification du schéma"
+    },
+    "msg": {
+      "consecutiveFailure": "{{count}} échecs consécutifs détectés sur {{job}}",
+      "jobFailure": "Dernier run de {{job}} en échec",
+      "slaBreach": "{{job}} terminé avec {{minutes}} min de retard",
+      "reconciliationKo": "Table {{table}} : Oracle={{oracle}}, SQLServer={{sql}} (taux={{rate}} %)",
+      "reconciliationWarn": "Table {{table}} : taux de réconciliation à {{rate}} %",
+      "schemaDrift": "{{count}} modification(s) de schéma détectée(s) dans les dernières 24 h"
+    }
+  },
+  "sla": {
+    "title": "Suivi des SLA",
+    "deadline": "Échéance",
+    "lastCompletion": "Dernière complétion",
+    "status": "Statut",
+    "lateBy": "Retard"
+  },
+  "recon": {
+    "title": "Réconciliation des volumes",
+    "table": "Table",
+    "businessDate": "Date métier",
+    "delta": "Écart",
+    "rate": "Taux"
+  },
+  "schema": {
+    "title": "Schéma des sources",
+    "summaryTab": "Vue par table",
+    "auditTab": "Audit des modifications",
+    "totalCols": "Colonnes",
+    "enabledCols": "Actives",
+    "indexedCols": "Indexées",
+    "mvCols": "Multi-valeurs",
+    "column": "Colonne",
+    "type": "Type",
+    "enabledChange": "Activation",
+    "indexedChange": "Indexation",
+    "updatedBy": "Modifié par",
+    "updatedOn": "Modifié le"
+  },
+  "users": {
+    "title": "Gestion des utilisateurs",
+    "create": "Nouvel utilisateur",
+    "edit": "Modifier l'utilisateur",
+    "role": "Rôle",
+    "active": "Statut",
+    "enabled": "Actif",
+    "disabled": "Désactivé",
+    "createdAt": "Créé le",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "saved": "Utilisateur enregistré",
+    "leaveEmpty": "laisser vide pour ne pas changer",
+    "passwordPolicy": "8+ caractères, majuscule, minuscule, chiffre et caractère spécial (@$!%*?&)",
+    "confirmDelete": "Supprimer définitivement {{name}} ?"
+  },
+  "assistant": {
+    "title": "Assistant IA",
+    "model": "Modèle",
+    "serviceDown": "Le service AI Agents est injoignable. Vérifiez qu'il est démarré (port 65015).",
+    "ollamaDown": "Ollama n'est pas disponible : les agents ne peuvent pas être exécutés.",
+    "qualityTab": "Qualité des données",
+    "schedulerTab": "Ordonnancement",
+    "historyTab": "Historique des rapports",
+    "quickScore": "Score rapide",
+    "fullAudit": "Audit complet",
+    "running": "Analyse en cours",
+    "auditHint": "L'audit complet fait travailler le modèle en profondeur : comptez jusqu'à plusieurs minutes selon la machine.",
+    "interpretation": "Synthèse de l'agent",
+    "actions": "Actions prioritaires",
+    "current": "Score actuel",
+    "maxGain": "Gain max",
+    "action": "Action recommandée",
+    "computePlan": "Calculer le plan d'ordonnancement",
+    "planComputing": "L'agent analyse l'historique des exécutions et calcule le plan optimal… la page se met à jour automatiquement.",
+    "computedAt": "Calculé le",
+    "plan": "Plan recommandé",
+    "target": "Cible",
+    "agentUnavailable": "Agent indisponible (Ollama arrêté ?)",
+    "reportDetail": "Détail du rapport",
+    "exportPdf": "Exporter en PDF",
+    "pdfViewer": "Aperçu PDF du rapport",
+    "download": "Télécharger",
+    "viewRaw": "Données brutes",
+    "viewFriendly": "Vue lisible"
+  },
+  "batch": {
+    "title": "Pilotage des extractions",
+    "main": "Extraction complète T24",
+    "mainDesc": "Chaîne principale : toutes les tables actives",
+    "customer": "Clients",
+    "customerDesc": "Extraction de la table CUSTOMER",
+    "ftHis": "Virements historisés",
+    "ftHisDesc": "Extraction FUNDS.TRANSFER$HIS",
+    "bills": "Détails de facturation",
+    "billsDesc": "Extraction AA.BILL.DETAILS",
+    "start": "Lancer",
+    "running": "En cours",
+    "started": "Traitement démarré",
+    "startFailed": "Échec du lancement",
+    "confirmStart": "Lancer le traitement « {{name}} » maintenant ?",
+    "stopTitle": "Arrêt du traitement principal",
+    "stopHint": "Envoie une demande d'arrêt gracieux à l'exécution T24 en cours. Les autres traitements ne sont pas concernés.",
+    "stop": "Arrêter T24",
+    "confirmStop": "Demander l'arrêt de l'extraction T24 en cours ? Le traitement s'arrêtera à la fin du chunk courant.",
+    "stopRequested": "Demande d'arrêt envoyée",
+    "columnsTitle": "Colonnes extraites par table",
+    "columnsWarning": "Désactiver une colonne l'exclut des prochaines extractions. Les données déjà chargées ne sont pas supprimées.",
+    "multiValue": "Multi-valeur",
+    "indexed": "Indexée",
+    "extracted": "Extraite",
+    "scheduler": {
+      "title": "Planification automatique",
+      "hint": "Chaque extraction activée se lance une fois par jour à l'heure choisie. Le planificateur relit cette configuration toutes les minutes : les changements sont pris en compte sans redéploiement.",
+      "table": "Extraction",
+      "load": "Chargement",
+      "enabled": "Active",
+      "auto": "Planifiée",
+      "time": "Heure (HH:mm)",
+      "status": "Statut",
+      "daily": "Quotidien à",
+      "manual": "Manuel uniquement",
+      "disabled": "Extraction désactivée",
+      "saved": "Planification enregistrée"
+    }
+  },
+  "kpi": {
+    "revenue": "Chiffre d'affaires",
+    "orders": "Commandes",
+    "customers": "Clients actifs",
+    "conversion": "Taux de conversion"
+  },
+  "category": {
+    "electronics": "Électronique",
+    "fashion": "Mode",
+    "home": "Maison",
+    "sport": "Sport",
+    "other": "Autres"
+  },
+  "table": {
+    "id": "ID",
+    "customer": "Client",
+    "category": "Catégorie",
+    "amount": "Montant",
+    "date": "Date",
+    "status": "Statut",
+    "action": "Action",
+    "exportCsv": "Exporter CSV",
+    "empty": "Aucune transaction trouvée.",
+    "pageReport": "{first}–{last} sur {totalRecords}"
+  },
+  "status": {
+    "completed": "Validée",
+    "pending": "En attente",
+    "failed": "Échouée"
+  },
+  "primeng": {
+    "emptyMessage": "Aucun résultat",
+    "clear": "Effacer",
+    "apply": "Appliquer"
+  },
+  "analytics": {
+    "title": "Analytique métier",
+    "question": "Comment l'activité bancaire évolue-t-elle et comment le portefeuille est-il réparti ?",
+    "filter": {
+      "year": "Année analysée",
+      "allYears": "Tout l'historique"
+    },
+    "kpi": {
+      "clients": "Clients",
+      "transfers": "Virements",
+      "bills": "Factures",
+      "officers": "Gestionnaires",
+      "avgAge": "Âge moyen"
+    },
+    "insight": {
+      "leader": "Gestionnaire leader",
+      "concentration": "Concentration du portefeuille",
+      "peak": "Pic d'activité",
+      "leaderDetail": "{{count}} clients · {{pct}} %",
+      "concentrationDetail": "Top 5 / {{count}} gestionnaires",
+      "peakDetail": "{{count}} virements"
+    },
+    "value": {
+      "SETTLED": "Réglée",
+      "DUE": "Échue",
+      "AGING": "En souffrance",
+      "ISSUED": "Émise",
+      "REPAID": "Remboursée",
+      "UNPAID": "Impayée",
+      "PAYMENT": "Paiement",
+      "MALE": "Homme",
+      "FEMALE": "Femme"
+    },
+    "chart": {
+      "monthlyTitle": "Virements par mois — N vs N-1",
+      "currentYear": "Année sélectionnée",
+      "previousYear": "Année précédente",
+      "pyramidTitle": "Clients par tranche d'âge",
+      "agePyramid": "Tranches d'âge",
+      "officersTitle": "Top 10 gestionnaires — clients gérés",
+      "clients": "Clients",
+      "agingTitle": "Vieillissement des créances"
+    },
+    "table": {
+      "title": "Performance par gestionnaire",
+      "officer": "Gestionnaire",
+      "clients": "Clients",
+      "avgAge": "Âge moyen",
+      "share": "Part du portefeuille"
+    },
+    "empty": {
+      "transfers": "Aucun virement sur la période sélectionnée.",
+      "pyramid": "Âges non disponibles — activez la colonne AGE puis relancez l'extraction."
+    },
+    "months": {
+      "1": "janv",
+      "2": "févr",
+      "3": "mars",
+      "4": "avr",
+      "5": "mai",
+      "6": "juin",
+      "7": "juil",
+      "8": "août",
+      "9": "sept",
+      "10": "oct",
+      "11": "nov",
+      "12": "déc"
+    },
+    "tabs": {
+      "billing": "Créances",
+      "customers": "Clients",
+      "overview": "Synthèse",
+      "flows": "Flux"
+    },
+    "billing": {
+      "title": "Créances & facturation",
+      "question": "Quel est l'état des créances : facturation, encours et recouvrement ?",
+      "kpi": {
+        "bills": "Factures",
+        "billed": "Montant facturé (TND)",
+        "outstanding": "Encours (TND)",
+        "paidPct": "Factures réglées (%)",
+        "delay": "Délai de règlement (j)"
+      },
+      "insight": {
+        "peak": "Mois record de facturation",
+        "paid": "Factures réglées",
+        "delay": "Délai moyen de règlement",
+        "peakDetail": "{{count}} factures émises",
+        "paidDetail": "factures réglées",
+        "delayAfter": "après l'échéance en moyenne",
+        "delayBefore": "avant l'échéance en moyenne"
+      },
+      "chart": {
+        "monthlyTitle": "Factures émises par mois — N vs N-1",
+        "amountLine": "Montant facturé (TND)",
+        "recoveryTitle": "Taux de recouvrement",
+        "recoveryCaption": "Part du montant facturé déjà encaissée",
+        "breakdownTitle": "Segmentation des créances",
+        "bills": "Factures"
+      },
+      "dimension": {
+        "aging": "Vieillissement",
+        "settle": "Règlement",
+        "status": "Statut",
+        "type": "Type",
+        "method": "Mode de paiement"
+      },
+      "table": {
+        "title": "Détail de la segmentation",
+        "category": "Catégorie",
+        "bills": "Factures",
+        "outstanding": "Encours",
+        "share": "Part"
+      },
+      "unlock": {
+        "title": "Le suivi du recouvrement attend vos données",
+        "hint": "Activez les colonnes manquantes dans l'écran Schéma, puis relancez une extraction complète : encours, taux de recouvrement, vieillissement et délais de règlement s'afficheront automatiquement."
+      },
+      "empty": {
+        "recovery": "Activez OR_TOTAL_AMOUNT et OS_TOTAL_AMOUNT puis relancez l'extraction pour mesurer le recouvrement.",
+        "breakdown": "Activez AGING_STATUS, SETTLE_STATUS, BILL_STATUS, BILL_TYPE ou PAYMENT_METHOD pour segmenter les créances."
+      }
+    },
+    "customers": {
+      "title": "Portefeuille clients",
+      "question": "Qui sont les clients de la banque et comment le portefeuille se développe-t-il ?",
+      "filter": {
+        "acquisitionYear": "Année d'entrée en relation"
+      },
+      "kpi": {
+        "clients": "Clients",
+        "avgAge": "Âge moyen",
+        "newCustomers": "Nouveaux clients",
+        "womenPct": "Femmes (%)",
+        "nationalities": "Nationalités",
+        "officers": "Gestionnaires"
+      },
+      "insight": {
+        "generation": "Génération dominante",
+        "core": "Cœur actif du portefeuille",
+        "peak": "Pic d'acquisition",
+        "migration": "Dossiers migrés",
+        "generationDetail": "{{count}} clients · {{pct}} %",
+        "coreDetail": "25–54 ans",
+        "peakDetail": "{{count}} nouveaux clients",
+        "migrationDetail": "dossiers issus de la migration initiale"
+      },
+      "chart": {
+        "histogramTitle": "Distribution des âges (pas de 5 ans)",
+        "generationsTitle": "Clients par génération",
+        "acquisitionTitle": "Nouveaux clients par mois — N vs N-1",
+        "breakdownTitle": "Segmentation du portefeuille",
+        "clients": "Clients"
+      },
+      "dimension": {
+        "sector": "Secteur",
+        "nationality": "Nationalité",
+        "gender": "Genre",
+        "target": "Segment",
+        "status": "Statut"
+      },
+      "table": {
+        "title": "Répartition par génération",
+        "generation": "Génération",
+        "clients": "Clients",
+        "share": "Part du portefeuille"
+      },
+      "unlock": {
+        "title": "La segmentation client attend vos données",
+        "hint": "Activez les colonnes manquantes dans l'écran Schéma, puis relancez une extraction complète : secteurs, nationalités, genre et acquisition mensuelle s'afficheront automatiquement."
+      },
+      "empty": {
+        "acquisition": "Activez DATE_AC_OPND puis relancez l'extraction pour suivre l'acquisition de nouveaux clients.",
+        "breakdown": "Activez SECTOR, NATIONALITY, GENDER, TARGET ou CUSTOMER_STATUS pour segmenter le portefeuille."
+      }
+    },
+    "days": {
+      "0": "Lun",
+      "1": "Mar",
+      "2": "Mer",
+      "3": "Jeu",
+      "4": "Ven",
+      "5": "Sam",
+      "6": "Dim"
+    },
+    "flows": {
+      "title": "Flux de virements",
+      "question": "Comment les flux évoluent-ils, en volume et en montant, et quand la banque est-elle la plus active ?",
+      "kpi": {
+        "transfers": "Virements",
+        "amount": "Montant total (TND)",
+        "avgTicket": "Ticket moyen (TND)",
+        "currencies": "Devises",
+        "types": "Types d'opération"
+      },
+      "insight": {
+        "currency": "Devise dominante",
+        "type": "Type d'opération dominant",
+        "ticket": "Ticket moyen",
+        "currencyDetail": "{{pct}} % · {{count}} opérations",
+        "typeDetail": "{{pct}} % des flux"
+      },
+      "chart": {
+        "monthlyTitle": "Virements par mois — volumes et montants",
+        "amountLine": "Montant (TND)",
+        "currencyTitle": "Répartition par devise",
+        "heatmapTitle": "Activité par mois et jour de semaine"
+      },
+      "table": {
+        "title": "Performance par type d'opération",
+        "type": "Type",
+        "ops": "Opérations",
+        "amount": "Montant",
+        "avgTicket": "Ticket moyen",
+        "share": "Part des flux"
+      },
+      "unlock": {
+        "title": "Des analyses supplémentaires attendent vos données",
+        "hint": "Activez les colonnes manquantes dans l'écran Schéma, puis relancez une extraction complète : montants, devises et types d'opération s'afficheront automatiquement.",
+        "action": "Ouvrir Schéma"
+      },
+      "empty": {
+        "currency": "Activez DEBIT_CURRENCY puis relancez l'extraction pour voir la répartition par devise.",
+        "type": "Activez TRANSACTION_TYPE puis relancez l'extraction pour analyser les types d'opération."
+      }
+    }
+  }
+}

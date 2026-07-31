@@ -1,0 +1,122 @@
+<header class="dash-header">
+  <div>
+    <h1 class="page-title">{{ 'dashboard.title' | translate }}</h1>
+    <p class="page-subtitle">{{ 'dashboard.subtitle' | translate }}</p>
+  </div>
+
+  <div class="dash-header-right">
+    @if (summary(); as s) {
+      <div class="cob-badge surface-card">
+        <span class="cob-label">COB</span>
+        <p-tag [value]="s.cobStatus" [severity]="statusSeverity(s.cobStatus)" />
+        @if (s.lastBusinessDate) {
+          <span class="cob-date" pTooltip="{{ 'dashboard.businessDate' | translate }}">
+            <i class="pi pi-calendar"></i> {{ s.lastBusinessDate }}
+          </span>
+        }
+      </div>
+    }
+    <p-button icon="pi pi-refresh" [rounded]="true" [text]="true"
+              [loading]="loading()" (onClick)="load()"
+              pTooltip="{{ 'common.refresh' | translate }}" />
+  </div>
+</header>
+
+<!-- ===== Erreur de chargement ===== -->
+@if (error()) {
+  <div class="surface-card error-panel">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ 'common.loadError' | translate }}</span>
+    <p-button [label]="'common.retry' | translate" icon="pi pi-refresh"
+              severity="secondary" (onClick)="load()" />
+  </div>
+}
+
+<!-- ===== KPIs ===== -->
+<section class="grid-kpi">
+  @for (kpi of cards(); track kpi.key) {
+    <app-kpi-card [kpi]="kpi" />
+  } @empty {
+    @for (i of [1,2,3,4]; track i) {
+      <div class="surface-card skeleton"></div>
+    }
+  }
+</section>
+
+<!-- ===== Graphiques ===== -->
+<section class="grid-charts">
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'dashboard.trendTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else { <div echarts [options]="trendOptions()" class="chart"></div> }
+  </div>
+
+  <div class="surface-card">
+    <h3 class="card-title">{{ 'dashboard.breakdownTitle' | translate }}</h3>
+    @if (loading()) { <div class="skeleton chart"></div> }
+    @else { <div echarts [options]="tableBreakdownOptions()" class="chart"></div> }
+  </div>
+</section>
+
+
+
+<!-- ===== Exécutions récentes ===== -->
+<section class="surface-card section-card">
+  <h3 class="card-title">{{ 'dashboard.recentExecutions' | translate }}</h3>
+
+  <p-table [value]="recentJobs()" [paginator]="true"
+           [rows]="8" dataKey="jobExecutionId" size="small"
+           [loading]="loading()">
+    <ng-template #header>
+      <tr>
+        <th>{{ 'jobs.name' | translate }}</th>
+        <th>{{ 'jobs.status' | translate }}</th>
+        <th>{{ 'jobs.startTime' | translate }}</th>
+        <th>{{ 'jobs.duration' | translate }}</th>
+        <th class="num">{{ 'jobs.read' | translate }}</th>
+        <th class="num">{{ 'jobs.written' | translate }}</th>
+        <th class="num">{{ 'jobs.skipped' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-job>
+      <tr>
+        <td class="mono">{{ job.jobName }}</td>
+        <td><span class="status-badge" [ngClass]="statusClass(job.status)">{{ statusLabel(job.status) }}</span></td>
+        <td>{{ job.startTime | date:'dd/MM HH:mm:ss' }}</td>
+        <td>{{ durationOf(job) | duration }}</td>
+        <td class="num">{{ job.totalReadCount | number }}</td>
+        <td class="num">{{ job.totalWriteCount | number }}</td>
+        <td class="num" [class.warn-text]="job.totalSkipCount > 0">
+          {{ job.totalSkipCount | number }}
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="7" class="empty-state">{{ 'common.noData' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</section>
+
+<!-- ===== Alertes actives ===== -->
+@if (activeAlerts().length > 0) {
+  <section class="surface-card section-card">
+    <h3 class="card-title">
+      {{ 'dashboard.activeAlerts' | translate }}
+      <p-tag [value]="activeAlerts().length.toString()" severity="danger" [rounded]="true" />
+    </h3>
+    <ul class="alert-list">
+      @for (alert of activeAlerts(); track $index) {
+        <li class="alert-item">
+          <p-tag [value]="('alerts.sev.' + alert.severity) | translate" [severity]="alertSeverity(alert.severity)" />
+          <div class="alert-body">
+            <span class="alert-msg">{{ alert.messageKey ? (alert.messageKey | translate:alert.params) : alert.message }}</span>
+            <span class="alert-meta">
+              @if (alert.jobName) { <span class="mono">{{ alert.jobName }}</span> · }
+              {{ alert.triggeredAt | date:'dd/MM HH:mm' }}
+            </span>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}

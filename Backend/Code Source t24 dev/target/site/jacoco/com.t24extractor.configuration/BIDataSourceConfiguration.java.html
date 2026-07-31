@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BIDataSourceConfiguration.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.configuration</a> &gt; <span class="el_source">BIDataSourceConfiguration.java</span></div><h1>BIDataSourceConfiguration.java</h1><pre class="source lang-java linenums">package com.t24extractor.configuration;
+
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.jdbc.core.dialect.JdbcSqlServerDialect;
+import org.springframework.data.jdbc.core.convert.DefaultJdbcTypeFactory;
+import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
+import org.springframework.data.jdbc.core.convert.MappingJdbcConverter;
+import org.springframework.data.jdbc.core.convert.RelationResolver;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.mapping.DefaultNamingStrategy;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.context.ApplicationContext;
+import org.springframework.data.jdbc.core.JdbcAggregateOperations;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
+import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
+import org.springframework.data.jdbc.core.convert.DefaultDataAccessStrategy;
+import org.springframework.data.jdbc.core.convert.SqlGeneratorSource;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+
+import javax.sql.DataSource;
+import java.util.Objects;
+
+
+@Configuration
+@EnableJdbcRepositories(
+        basePackages = &quot;com.t24extractor.repository.bi_repos&quot;,
+        jdbcAggregateOperationsRef = &quot;biJdbcAggregateOperations&quot;,
+        transactionManagerRef = &quot;biTransactionManager&quot;
+)
+
+/**
+ * Pile d'accès à la base BI (SQL Server), cible de l'extraction.
+ *
+ * &lt;p&gt;Déclarée {@code @Primary} : c'est la base par défaut de l'application, y
+ * compris pour les métadonnées Spring Batch. Chaque bean a son pendant côté
+ * Oracle dans {@link T24DataSourceConfiguration} ; les deux piles sont
+ * volontairement disjointes pour qu'un dialecte ou une transaction ne puisse
+ * pas être appliqué à la mauvaise base.
+ *
+ * &lt;p&gt;L'auto-commit est activé car les instructions DDL générées à l'étape
+ * BI_SYNC (CREATE, ALTER) s'exécutent hors des transactions du batch.
+ */
+<span class="fc" id="L56">public class BIDataSourceConfiguration {</span>
+
+    @Bean
+    @Primary
+    @ConfigurationProperties(&quot;spring.datasource.bi&quot;)
+    public DataSourceProperties biDataSourceProperties() {
+<span class="fc" id="L62">        return new DataSourceProperties();</span>
+    }
+
+    @Bean(name = &quot;bi&quot;)
+    @Primary
+    public DataSource biDataSource() {
+<span class="fc" id="L68">        HikariDataSource ds = new HikariDataSource();</span>
+<span class="fc" id="L69">        ds.setJdbcUrl(Objects.requireNonNull(biDataSourceProperties().getUrl()));</span>
+<span class="fc" id="L70">        ds.setUsername(Objects.requireNonNull(biDataSourceProperties().getUsername()));</span>
+<span class="fc" id="L71">        ds.setPassword(Objects.requireNonNull(biDataSourceProperties().getPassword()));</span>
+<span class="fc" id="L72">        ds.setDriverClassName(Objects.requireNonNull(biDataSourceProperties().getDriverClassName()));</span>
+<span class="fc" id="L73">        ds.setAutoCommit(true);</span>
+<span class="fc" id="L74">        ds.setMaximumPoolSize(20);</span>
+<span class="fc" id="L75">        return ds;</span>
+    }
+
+
+    @Bean(&quot;jdbcBI&quot;)
+    @Primary
+    public JdbcTemplate jdbcSqlServer(@Qualifier(&quot;bi&quot;) DataSource ds) {
+<span class="fc" id="L82">        return new JdbcTemplate(ds);</span>
+    }
+
+
+    @Bean(name = &quot;biJdbcOperations&quot;)
+    @Primary
+    NamedParameterJdbcOperations biJdbcOperations(@Qualifier(&quot;bi&quot;) DataSource dataSource) {
+<span class="fc" id="L89">        return new NamedParameterJdbcTemplate(dataSource);</span>
+    }
+
+    @Bean(name = &quot;biTransactionManager&quot;)
+    @Primary
+    public PlatformTransactionManager biTransactionManager(@Qualifier(&quot;bi&quot;) DataSource ds) {
+<span class="fc" id="L95">        return new DataSourceTransactionManager(ds);</span>
+    }
+
+    @Bean(name = &quot;biDialect&quot;)
+    @Primary
+    public Dialect biDialect() {
+<span class="fc" id="L101">        return JdbcSqlServerDialect.INSTANCE;</span>
+    }
+
+    @Bean(name = &quot;biJdbcCustomConversions&quot;)
+    @Primary
+    public JdbcCustomConversions biJdbcCustomConversions() {
+<span class="fc" id="L107">        return new JdbcCustomConversions();</span>
+    }
+
+    @Bean(name = &quot;biMappingContext&quot;)
+    @Primary
+    public RelationalMappingContext biMappingContext() {
+<span class="fc" id="L113">        return new org.springframework.data.jdbc.core.mapping.JdbcMappingContext(DefaultNamingStrategy.INSTANCE);</span>
+    }
+
+    @Bean(name = &quot;biJdbcConverter&quot;)
+    @Primary
+    public JdbcConverter biJdbcConverter(
+            @Qualifier(&quot;biMappingContext&quot;) RelationalMappingContext context,
+            @Qualifier(&quot;biJdbcOperations&quot;) NamedParameterJdbcOperations ops,
+            @Lazy @Qualifier(&quot;biDataAccessStrategy&quot;) RelationResolver relationResolver,
+            @Qualifier(&quot;biJdbcCustomConversions&quot;) JdbcCustomConversions conversions
+    ) {
+<span class="fc" id="L124">        return new MappingJdbcConverter(context, relationResolver, conversions, new DefaultJdbcTypeFactory(ops.getJdbcOperations()));</span>
+    }
+
+    @Bean(name = &quot;biDataAccessStrategy&quot;)
+    @Primary
+    public DataAccessStrategy biDataAccessStrategy(
+            @Qualifier(&quot;biMappingContext&quot;) RelationalMappingContext context,
+            @Qualifier(&quot;biJdbcConverter&quot;) JdbcConverter converter,
+            @Qualifier(&quot;biJdbcOperations&quot;) NamedParameterJdbcOperations ops,
+            @Qualifier(&quot;biDialect&quot;) Dialect dialect
+    ) {
+<span class="fc" id="L135">        var sqlGeneratorSource = new SqlGeneratorSource(context, converter, dialect);</span>
+<span class="fc" id="L136">        return new DefaultDataAccessStrategy(</span>
+                sqlGeneratorSource,
+                context,
+                converter,
+                ops,
+                new org.springframework.data.jdbc.core.convert.SqlParametersFactory(context, converter),
+                new org.springframework.data.jdbc.core.convert.InsertStrategyFactory(ops, dialect),
+                org.springframework.data.jdbc.core.convert.QueryMappingConfiguration.EMPTY
+        );
+    }
+
+    @Bean(name = &quot;biJdbcAggregateOperations&quot;)
+    @Primary
+    public JdbcAggregateOperations biJdbcAggregateOperations(
+            ApplicationContext applicationContext,
+            @Qualifier(&quot;biMappingContext&quot;) RelationalMappingContext context,
+            @Qualifier(&quot;biJdbcConverter&quot;) JdbcConverter converter,
+            @Qualifier(&quot;biDataAccessStrategy&quot;) DataAccessStrategy dataAccessStrategy
+    ) {
+<span class="fc" id="L155">        return new JdbcAggregateTemplate(applicationContext, context, converter, dataAccessStrategy);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

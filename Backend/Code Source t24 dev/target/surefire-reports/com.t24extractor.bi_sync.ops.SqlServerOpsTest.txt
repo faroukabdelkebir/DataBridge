@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.t24extractor.bi_sync.ops.SqlServerOpsTest
+-------------------------------------------------------------------------------
+Tests run: 23, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.143 s -- in com.t24extractor.bi_sync.ops.SqlServerOpsTest

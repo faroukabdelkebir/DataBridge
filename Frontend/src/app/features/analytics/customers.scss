@@ -1,0 +1,234 @@
+/* ═══ Page Clients ═══
+   Mêmes conventions que analytics.scss ; styles scopés au composant. */
+
+.ana-question { font-style: italic; }
+
+.ana-filters {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* ── Panneau « à débloquer » ──────────────────────────────────────────── */
+.ana-unlock {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  border-left: 3px solid #e8a13c;
+
+  .ana-unlock-icon {
+    font-size: 1.4rem;
+    color: #e8a13c;
+  }
+
+  .ana-unlock-body { flex: 1; }
+
+  .ana-unlock-title {
+    font-weight: 600;
+    font-size: .95rem;
+  }
+  .ana-unlock-hint {
+    font-size: .83rem;
+    opacity: .65;
+    margin-top: .15rem;
+  }
+
+  .ana-unlock-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-top: .6rem;
+  }
+
+  .ana-col {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: .74rem;
+    padding: .2rem .55rem;
+    border-radius: 999px;
+    border: 1px solid var(--app-border);
+
+    &.ok      { color: #22c55e; border-color: color-mix(in srgb, #22c55e 35%, transparent); }
+    &.missing { color: #e8a13c; border-color: color-mix(in srgb, #e8a13c 35%, transparent); }
+  }
+}
+
+/* ── Bandeau insights ─────────────────────────────────────────────────── */
+.ana-insights {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ana-leader {
+  border-radius: var(--radius-card, 10px);
+  padding: 1.25rem;
+  color: #fff;
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(122, 165, 248, .35), transparent 55%),
+    linear-gradient(135deg, #1e3a8a 0%, #2d5bd1 100%);
+
+  .ana-leader-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    opacity: .85;
+
+    i { color: #ffd76a; }
+  }
+
+  .ana-leader-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin-top: .4rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ana-leader-detail {
+    font-size: .85rem;
+    opacity: .8;
+    margin-top: .15rem;
+  }
+}
+
+.ana-insight {
+  display: flex;
+  gap: .9rem;
+  align-items: flex-start;
+
+  > i {
+    font-size: 1.25rem;
+    color: var(--brand-accent, #6366f1);
+    margin-top: .2rem;
+  }
+
+  .ana-insight-title {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    opacity: .6;
+  }
+  .ana-insight-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .ana-insight-detail {
+    font-size: .82rem;
+    opacity: .65;
+  }
+}
+
+/* ── Graphiques & tableau ─────────────────────────────────────────────── */
+.card-title {
+  margin: 0 0 .75rem;
+  font-size: .95rem;
+  font-weight: 600;
+}
+
+.chart      { height: 300px; }
+.chart-tall { height: 370px; }
+
+.ana-bottom { grid-template-columns: 1.3fr 1fr; }
+
+.ana-share {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+.ana-share-bar {
+  flex: 1;
+  height: 8px;
+  min-width: 60px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--brand-accent, #6366f1) 12%, transparent);
+  overflow: hidden;
+}
+
+.ana-share-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: #2d5bd1;
+}
+
+.ana-share-pct {
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.4rem;
+  text-align: right;
+}
+
+/* États vides « verrouillés » : la donnée existe côté T24, pas encore ici */
+.empty-state.locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  padding: 2.5rem 1rem;
+
+  i { font-size: 1.4rem; color: #e8a13c; }
+}
+
+/* ── Panneau d'erreur ─────────────────────────────────────────────────── */
+.error-panel {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin-bottom: 1.25rem;
+
+  > i { color: #ef4444; font-size: 1.2rem; }
+  > span { flex: 1; }
+}
+
+/* ── Squelettes & responsive ──────────────────────────────────────────── */
+.skeleton {
+  min-height: 110px;
+  border-radius: var(--radius-card, 10px);
+  animation: ana-pulse 1.4s ease-in-out infinite;
+
+  &.chart { min-height: 300px; }
+}
+
+@keyframes ana-pulse {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: .85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+@media (max-width: 1100px) {
+  .ana-insights { grid-template-columns: 1fr 1fr; }
+  .ana-leader   { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .ana-insights,
+  .ana-bottom { grid-template-columns: 1fr; }
+
+  .ana-unlock {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── En-tête de carte avec sélecteur de dimension ─────────────────────── */
+.ana-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: .5rem;
+
+  .card-title { margin-bottom: 0; }
+}

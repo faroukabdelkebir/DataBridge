@@ -1,0 +1,126 @@
+# _format_version: "3.0"
+# _transform: true
+
+
+# services:
+#   - name: userms
+#     url: http://user-ms:8085
+#     routes:
+#       - name: userms-route
+#         paths: [/userms]
+#         strip_path: true
+
+#   - name: authms
+#     url: http://auth-ms:8090
+#     read_timeout: 600000
+#     write_timeout: 600000
+#     routes:
+#       - name: authms-route
+#         paths: [/authms]
+#         strip_path: true
+
+#   - name: extractor
+#     url: http://extractor-t24:65005
+#     routes:
+#       - name: extractor-route
+#         paths: [/extractor]
+#         strip_path: true
+
+#   - name: monitoring
+#     url: http://monitoring-ms:65010
+#     routes:
+#       - name: monitoring-route
+#         paths: [/monitoring]
+#         strip_path: true
+
+#   - name: aiagents
+#     url: http://extractor-ai:65015
+#     # Les agents LLM peuvent être lents : on allonge les timeouts (en ms)
+#     connect_timeout: 60000
+#     read_timeout: 600000
+#     write_timeout: 600000
+#     routes:
+#       - name: aiagents-route
+#         paths: [/aiagents]
+#         strip_path: true
+#     plugins:
+#       # Protection contre la saturation d'Ollama (agents coûteux en CPU/GPU)
+#       - name: rate-limiting
+#         config:
+#           minute: 10
+#           policy: local
+
+# plugins:
+#   - name: cors
+#     config:
+#       origins:
+#         # Doit correspondre au port hôte du frontend (FRONTEND_PORT dans .env).
+#         # Ajouter ici l'origine de production quand vous déploierez.
+#         - http://localhost:4200
+#       methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+#       headers: [Accept, Authorization, Content-Type, Origin, X-Requested-With]
+#       exposed_headers: [Authorization]
+#       credentials: true
+#       max_age: 3600
+
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: userms
+    url: http://host.docker.internal:8085
+    routes:
+      - name: userms-route
+        paths: [/userms]
+        strip_path: true
+
+  - name: authms
+    url: http://host.docker.internal:8090
+    read_timeout: 600000
+    write_timeout: 600000
+    routes:
+      - name: authms-route
+        paths: [/authms]
+        strip_path: true
+
+  - name: extractor
+    url: http://host.docker.internal:65005
+    routes:
+      - name: extractor-route
+        paths: [/extractor]
+        strip_path: true
+
+  - name: monitoring
+    url: http://host.docker.internal:65010
+    routes:
+      - name: monitoring-route
+        paths: [/monitoring]
+        strip_path: true
+
+  - name: aiagents
+    url: http://host.docker.internal:65015
+    # Les agents LLM peuvent être lents : on allonge les timeouts (en ms)
+    connect_timeout: 60000
+    read_timeout: 600000
+    write_timeout: 600000
+    routes:
+      - name: aiagents-route
+        paths: [/aiagents]
+        strip_path: true
+    plugins:
+      # Protection contre la saturation d'Ollama (agents coûteux en CPU/GPU)
+      - name: rate-limiting
+        config:
+          minute: 10
+          policy: local
+          
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:4200
+      methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+      headers: [Accept, Authorization, Content-Type, Origin, X-Requested-With]
+      exposed_headers: [Authorization]
+      credentials: true
+      max_age: 3600

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>QueryTasklet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.tasklet</a> &gt; <span class="el_source">QueryTasklet.java</span></div><h1>QueryTasklet.java</h1><pre class="source lang-java linenums">package com.t24extractor.tasklet;
+
+import com.t24extractor.bi_sync.ops.SqlOps;
+import com.t24extractor.bi_sync.ops.OracleOps;
+import lombok.NonNull;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.step.StepContribution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import static com.t24extractor.commons.Constants.PARTITION_BY_ROWID;
+import static com.t24extractor.commons.Constants.SELECT_XML_RECORDS_TPL;
+import static com.t24extractor.commons.Constants.WHERE_RECID_CURRENT_AND_PREVIOUS_MONTH;
+
+
+/**
+ * Construit la requête de lecture Oracle selon le mode de chargement.
+ *
+ * &lt;h2&gt;Modes de chargement&lt;/h2&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code Full} — relit toute la table ;&lt;/li&gt;
+ *   &lt;li&gt;{@code Incremental} — ne reprend que les enregistrements postérieurs à
+ *       la dernière extraction, via une colonne de date de référence ;&lt;/li&gt;
+ *   &lt;li&gt;{@code Incremental-specific} — filtre sur le mois courant et le
+ *       précédent, à partir du motif de RECID ;&lt;/li&gt;
+ *   &lt;li&gt;{@code Incremental-id} — l'écrémage se fait en aval, sur les
+ *       identifiants déjà extraits ; aucune borne n'est posée ici.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;La date sentinelle {@code 00000000} marque une première extraction : aucune
+ * borne n'est alors appliquée.
+ *
+ * &lt;p&gt;Au-delà de 1 000 lignes, une clause de partitionnement par hachage du
+ * ROWID est ajoutée pour que chaque worker ne lise que sa part.
+ *
+ * &lt;p&gt;La requête produite est publiée sous la clé {@code QUERY}, et seulement
+ * pour les tables XML : les tables BLOB sont lues au travers de la vue
+ * construite à l'étape STANDARD.SELECTION.
+ */
+<span class="fc" id="L44">@Slf4j</span>
+public class QueryTasklet implements Tasklet {
+    /** Mot-clé introduisant le premier filtre de la requête. */
+    public static final String WHERE_CLAUSE = &quot;WHERE&quot;;
+
+    /** Mot-clé enchaînant un filtre supplémentaire sur un WHERE existant. */
+    public static final String AND_CLAUSE = &quot;AND&quot;;
+<span class="fc" id="L51">    private static final CharSequence SPACE = &quot; &quot;;</span>
+
+    private final JdbcTemplate jdbcTemplate;
+
+<span class="fc" id="L55">    private final SqlOps sqlOps = new OracleOps();</span>
+
+<span class="fc" id="L57">    public QueryTasklet(@Qualifier(&quot;jdbcTemplateT24&quot;) JdbcTemplate jdbcTemplate) {</span>
+<span class="fc" id="L58">        this.jdbcTemplate = jdbcTemplate;</span>
+<span class="fc" id="L59">    }</span>
+
+    @Setter
+    private String tableName;
+
+    @Setter
+    private String chargement;
+    @Setter
+    private String lastDate;
+    @Setter
+    private String columnRef;
+    @Setter
+    private String futureDate;
+    @Setter
+    private String dateFormat;
+
+    /**
+     * {@inheritDoc}
+     *
+     * &lt;p&gt;N'écrit {@code QUERY} que si le type de stockage vaut {@code X} : pour
+     * une table BLOB, la requête de lecture est la vue et non un SELECT direct.
+     *
+     * @return toujours {@link RepeatStatus#FINISHED}
+     */
+    @Override
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">    public RepeatStatus execute(StepContribution stepContribution, @NonNull ChunkContext chunkContext) throws Exception {</span>
+<span class="fc" id="L85">        String type = String.valueOf(stepContribution.getStepExecution().getJobExecution().getExecutionContext().get(&quot;Type&quot;, Character.class));</span>
+
+<span class="fc" id="L87">        String dataQuery = getDataQuery();</span>
+
+<span class="fc bfc" id="L89" title="All 2 branches covered.">        if (&quot;X&quot;.equalsIgnoreCase(type)) {</span>
+<span class="fc" id="L90">            chunkContext.getStepContext()</span>
+<span class="fc" id="L91">                    .getStepExecution()</span>
+<span class="fc" id="L92">                    .getJobExecution()</span>
+<span class="fc" id="L93">                    .getExecutionContext()</span>
+<span class="fc" id="L94">                    .put(&quot;QUERY&quot;, dataQuery);</span>
+        }
+
+<span class="fc" id="L97">        return RepeatStatus.FINISHED;</span>
+    }
+
+    private String getDataQuery() {
+<span class="fc" id="L101">        String dataQuery = String.format(SELECT_XML_RECORDS_TPL, this.tableName);</span>
+<span class="fc" id="L102">        dataQuery = String.join(SPACE, dataQuery, getQueryCondition());</span>
+
+
+<span class="fc" id="L105">        StringBuilder partitioningQuery = new StringBuilder(PARTITION_BY_ROWID);</span>
+
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (getQueryCondition().contains(WHERE_CLAUSE))</span>
+<span class="fc" id="L108">            partitioningQuery.replace(0, WHERE_CLAUSE.length(), AND_CLAUSE);</span>
+
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        if (sqlOps.countAll(jdbcTemplate, tableName) &gt;= 1_000)</span>
+<span class="fc" id="L111">            dataQuery = String.join(SPACE, dataQuery, partitioningQuery);</span>
+
+
+<span class="fc" id="L114">        return dataQuery;</span>
+
+    }
+
+    private String getQueryCondition() {
+<span class="fc bfc" id="L119" title="All 4 branches covered.">        switch (chargement) {</span>
+            case &quot;Full&quot;, &quot;Incremental-id&quot; -&gt; {
+<span class="fc" id="L121">                return &quot;&quot;;</span>
+            }
+            case &quot;Incremental&quot; -&gt; {
+<span class="fc" id="L124">                return incrementalCondition();</span>
+            }
+            case &quot;Incremental-specific&quot; -&gt; {
+<span class="fc" id="L127">                return incrementalSpecificCondition();</span>
+            }
+            default -&gt; {
+<span class="fc" id="L130">                return &quot;&quot;;</span>
+            }
+        }
+    }
+
+    private String incrementalCondition() {
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        if (isBlank(columnRef)) {</span>
+<span class="fc" id="L137">            return &quot;&quot;;</span>
+        }
+<span class="fc bfc" id="L139" title="All 2 branches covered.">        if (isBlank(futureDate)) {</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            if (&quot;00000000&quot;.equals(lastDate)) {</span>
+<span class="fc" id="L141">                return &quot;&quot;;</span>
+            }
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            return isVarcharDate()</span>
+<span class="fc" id="L144">                    ? WHERE_CLAUSE + &quot; &quot; + columnRef + &quot; &gt; &quot; + &quot;'&quot; + lastDate + &quot;'&quot;</span>
+<span class="fc" id="L145">                    : WHERE_CLAUSE + &quot; &quot; + columnRef + &quot; &gt; &quot; + lastDate;</span>
+        }
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        return isVarcharDate()</span>
+<span class="fc" id="L148">                ? WHERE_CLAUSE + &quot; &quot; + columnRef + &quot; &gt; '&quot; + lastDate + &quot;'&quot; + &quot; AND &quot; + columnRef + &quot; &lt;= '&quot; + futureDate + &quot;'&quot;</span>
+<span class="fc" id="L149">                : WHERE_CLAUSE + &quot; &quot; + columnRef + &quot; &gt; &quot; + lastDate + &quot; AND &quot; + columnRef + &quot; &lt;= &quot; + futureDate;</span>
+    }
+
+    private String incrementalSpecificCondition() {
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (&quot;000000&quot;.equals(lastDate)) {</span>
+<span class="fc" id="L154">            return &quot;&quot;;</span>
+        }
+<span class="fc" id="L156">        return WHERE_RECID_CURRENT_AND_PREVIOUS_MONTH;</span>
+    }
+
+    private boolean isVarcharDate() {
+<span class="fc bfc" id="L160" title="All 4 branches covered.">        return isBlank(dateFormat) || &quot;varchar&quot;.equalsIgnoreCase(dateFormat);</span>
+    }
+
+    private boolean isBlank(String value) {
+<span class="pc bpc" id="L164" title="1 of 4 branches missed.">        return value == null || value.isEmpty();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

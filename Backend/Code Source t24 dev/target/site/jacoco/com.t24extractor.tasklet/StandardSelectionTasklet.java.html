@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StandardSelectionTasklet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.tasklet</a> &gt; <span class="el_source">StandardSelectionTasklet.java</span></div><h1>StandardSelectionTasklet.java</h1><pre class="source lang-java linenums">package com.t24extractor.tasklet;
+
+import com.t24extractor.repository.t24_repo.StandardSelectionRepository;
+import com.t24extractor.repository.t24_repo.TafjVocRepository;
+import lombok.extern.slf4j.Slf4j;
+import nu.xom.Attribute;
+import nu.xom.Builder;
+import nu.xom.Element;
+import nu.xom.ParsingException;
+import org.json.JSONObject;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.StepContribution;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.io.IOException;
+import java.util.*;
+
+import static com.t24extractor.commons.Constants.SELECT_BLOB_VIEW_PREFIX;
+import static com.t24extractor.commons.Constants.SELECT_BLOB_VIEW_SUFFIX_TPL;
+import static com.t24extractor.commons.Constants.UPDATE_BATCH_CONFIG_TYPE_TPL;
+
+/**
+ * Traduit le dictionnaire STANDARD.SELECTION de T24 en schéma exploitable.
+ *
+ * &lt;p&gt;C'est l'étape qui donne un sens aux enregistrements T24 : sans elle, un
+ * XMLRECORD n'est qu'une suite de balises {@code c1}, {@code c2}… sans nom ni
+ * type. Le dictionnaire est un XML dont chaque balise porte un attribut
+ * {@code m} identifiant le champ décrit :
+ *
+ * &lt;table class=&quot;striped&quot;&gt;
+ *   &lt;caption&gt;Balises interprétées&lt;/caption&gt;
+ *   &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Balise&lt;/th&gt;&lt;th&gt;Signification&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+ *   &lt;tbody&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c1}&lt;/td&gt;&lt;td&gt;nom du champ&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c2}&lt;/td&gt;&lt;td&gt;nature ; seuls les champs de données ({@code D}) sont retenus&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c3}&lt;/td&gt;&lt;td&gt;numéro de champ, qui devient la clé {@code c&lt;n&gt;}&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c4}&lt;/td&gt;&lt;td&gt;type T24 ({@code IN2AMT} → Float, {@code IN2.D} → Integer…)&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c6}&lt;/td&gt;&lt;td&gt;longueur&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c10}&lt;/td&gt;&lt;td&gt;{@code S} simple ou {@code M} multivalué&lt;/td&gt;&lt;/tr&gt;
+ *     &lt;tr&gt;&lt;td&gt;{@code c15}, {@code c17}, {@code c18}, {@code c24}&lt;/td&gt;
+ *         &lt;td&gt;nom, position, type et cardinalité des champs LOCAL.REF&lt;/td&gt;&lt;/tr&gt;
+ *   &lt;/tbody&gt;
+ * &lt;/table&gt;
+ *
+ * &lt;p&gt;Les points des noms T24 sont remplacés par des soulignés, SQL Server ne
+ * les acceptant pas dans un identifiant non échappé.
+ *
+ * &lt;h2&gt;Sorties&lt;/h2&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code sysFieldOds} — dictionnaire nom de colonne → type ODS, référence
+ *       unique pour BI_SYNC puis la normalisation JSON ;&lt;/li&gt;
+ *   &lt;li&gt;{@code Mongo_Standard_Selection} — dictionnaire détaillé consommé par
+ *       {@link com.t24extractor.processor.XMLProcessor} ;&lt;/li&gt;
+ *   &lt;li&gt;{@code VIEW_QUERY} — uniquement pour les tables BLOB, requête de lecture
+ *       de la vue éclatée ;&lt;/li&gt;
+ *   &lt;li&gt;{@code TYPE} — corrige le mode de stockage si TAFJ contredit la
+ *       configuration enregistrée.&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+<span class="fc" id="L64">@Slf4j</span>
+public class StandardSelectionTasklet implements Tasklet {
+    private final JdbcTemplate jdbcBatchExecutor;
+    private final TafjVocRepository tafjVocRepository;
+    private final StandardSelectionRepository standardSelectionRepository;
+    private JdbcOperations jdbcExecutor;
+    private String oracleTableName;
+    private String t24TableName;
+    private String tableType;
+<span class="fc" id="L73">    protected static final List&lt;String&gt; blobViewFields = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L74">    protected static final Set&lt;String&gt; multiValueBlobFields = new HashSet&lt;&gt;();</span>
+    private static final String STRING_TYPE = &quot;String&quot;;
+    private static final String IN2AMT = &quot;IN2AMT&quot;;
+    private static final String IN2AMT_AMP = &quot;IN2AMT&amp;&quot;;
+    private static final String IN2LAMT = &quot;IN2LAMT&quot;;
+    private static final String IN2LAMT_AMP = &quot;IN2LAMT&amp;&quot;;
+    private static final String IN2FWDR = &quot;IN2FWDR&quot;;
+    private static final String IN2FWDR_AMP = &quot;IN2FWDR&amp;&quot;;
+    private static final String IN2PRICE = &quot;IN2PRICE&quot;;
+    private static final String IN2PRICE_AMP = &quot;IN2PRICE&amp;&quot;;
+    private static final String IN2BMT = &quot;IN2BMT&quot;;
+    private static final String IN2BMT_AMP = &quot;IN2BMT&amp;&quot;;
+    private static final String IN2NOMAMT = &quot;IN2NOMAMT&quot;;
+    private static final String IN2NOMAMT_AMP = &quot;IN2NOMAMT&amp;&quot;;
+    private static final String IN2TAX = &quot;IN2TAX&quot;;
+    private static final String IN2TAX_AMP = &quot;IN2TAX&amp;&quot;;
+    private static final String IN2DEC = &quot;IN2DEC&quot;;
+    private static final String IN2DEC_AMP = &quot;IN2DEC&amp;&quot;;
+    private static final String IN2RR = &quot;IN2RR&quot;;
+    private static final String IN2RR_AMP = &quot;IN2RR&amp;&quot;;
+    private static final String IN2CCYDEC = &quot;IN2CCYDEC&quot;;
+    private static final String IN2CCYDEC_AMP = &quot;IN2CCYDEC&amp;&quot;;
+    private static final String IN2R_AMT = &quot;IN2R.AMT&quot;;
+    private static final String IN2R_AMT_AMP = &quot;IN2R.AMT&amp;&quot;;
+
+    public StandardSelectionTasklet(
+            @Qualifier(&quot;jdbcBI&quot;) JdbcTemplate jdbcBatchExecutor,
+            TafjVocRepository tafjVocRepository,
+<span class="fc" id="L102">            StandardSelectionRepository standardSelectionRepository) {</span>
+<span class="fc" id="L103">        this.jdbcBatchExecutor = jdbcBatchExecutor;</span>
+<span class="fc" id="L104">        this.tafjVocRepository = tafjVocRepository;</span>
+<span class="fc" id="L105">        this.standardSelectionRepository = standardSelectionRepository;</span>
+<span class="fc" id="L106">    }</span>
+
+    protected JdbcOperations getJdbcTemplate() {
+<span class="nc" id="L109">        return jdbcExecutor;</span>
+    }
+
+    /** @param jdbcOperations accès à la base T24 (Oracle) */
+    public void setJdbcExecutor(JdbcOperations jdbcOperations) {
+<span class="fc" id="L114">        jdbcExecutor = jdbcOperations;</span>
+<span class="fc" id="L115">    }</span>
+
+    /** @param oracleName table Oracle physique, par exemple {@code FBNK_CUSTOMER} */
+    public void setOracleTableName(String oracleName) {
+<span class="fc" id="L119">        oracleTableName = oracleName;</span>
+<span class="fc" id="L120">    }</span>
+
+    /** @param t24Name nom fonctionnel T24, par exemple {@code FUNDS.TRANSFER$HIS} */
+    public void setT24TableName(String t24Name) {
+<span class="fc" id="L124">        t24TableName = t24Name;</span>
+<span class="fc" id="L125">    }</span>
+
+    /** @param type mode de stockage attendu ({@code X}, {@code B} ou {@code C}) */
+    public void setTableType(String type) {
+<span class="fc" id="L129">        tableType = type;</span>
+<span class="fc" id="L130">    }</span>
+
+    /**
+     * Colonnes de la vue BLOB, publiées pour
+     * {@link com.t24extractor.rowmapper.BlobRowMapper} qui ne peut pas les
+     * connaître autrement.
+     *
+     * &lt;p&gt;&lt;b&gt;État partagé et mutable&lt;/b&gt; : la liste est statique et réinitialisée
+     * à chaque exécution. Deux tables BLOB ne peuvent donc pas être traitées
+     * simultanément.
+     *
+     * @return les noms de colonnes de la dernière vue construite
+     */
+    public static List&lt;String&gt; getBlobViewFields() {
+<span class="fc" id="L144">        return blobViewFields;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return toujours {@link RepeatStatus#FINISHED}
+     * @throws NullPointerException si TAFJ_VOC ou le STANDARD.SELECTION ne
+     *         référencent pas la table
+     * @throws ParsingException si le dictionnaire XML est illisible
+     */
+    @Override
+    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) throws Exception {
+<span class="fc" id="L157">        blobViewFields.clear();</span>
+<span class="fc" id="L158">        multiValueBlobFields.clear();</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        assert t24TableName != null;</span>
+
+<span class="fc" id="L161">        String tafjVocRow = tafjVocRepository.findTafjVocByOrclFileName(oracleTableName)</span>
+<span class="fc" id="L162">                .orElseThrow(NullPointerException::new)</span>
+<span class="fc" id="L163">                .isBlob();</span>
+<span class="fc" id="L164">        updateTypeIfNeeded(chunkContext, tafjVocRow);</span>
+
+<span class="fc" id="L166">        String xmlStr = resolveXmlRecord();</span>
+<span class="fc" id="L167">        ProcessingContext context = processXml(xmlStr);</span>
+<span class="fc" id="L168">        putViewQuery(chunkContext, context, tafjVocRow);</span>
+<span class="fc" id="L169">        putStandardSelectionInExecutionContext(chunkContext, context);</span>
+<span class="fc" id="L170">        return RepeatStatus.FINISHED;</span>
+    }
+
+    private void updateTypeIfNeeded(ChunkContext chunkContext, String tafjVocRow) {
+<span class="pc bpc" id="L174" title="2 of 6 branches missed.">        if (tafjVocRow == null || tafjVocRow.isEmpty() || tableType.equals(tafjVocRow)) {</span>
+<span class="fc" id="L175">            return;</span>
+        }
+<span class="fc" id="L177">        jdbcBatchExecutor.execute(</span>
+<span class="fc" id="L178">                String.format(UPDATE_BATCH_CONFIG_TYPE_TPL, tafjVocRow, oracleTableName));</span>
+<span class="fc" id="L179">        chunkContext.getStepContext().getStepExecution().getJobExecution().getExecutionContext().put(&quot;TYPE&quot;, tafjVocRow);</span>
+<span class="fc" id="L180">    }</span>
+
+    private String resolveXmlRecord() {
+<span class="pc bpc" id="L183" title="2 of 6 branches missed.">        if (t24TableName.contains(&quot;$HIS&quot;) || t24TableName.contains(&quot;$NAU&quot;) || t24TableName.contains(&quot;$ARC&quot;)) {</span>
+<span class="fc" id="L184">            return standardSelectionRepository.findById(t24TableName.substring(0, t24TableName.indexOf(&quot;$&quot;)))</span>
+<span class="fc" id="L185">                    .orElseThrow(NullPointerException::new)</span>
+<span class="fc" id="L186">                    .getXmlRecord();</span>
+        }
+<span class="fc" id="L188">        return standardSelectionRepository.findById(t24TableName)</span>
+<span class="fc" id="L189">                .orElseThrow(NullPointerException::new)</span>
+<span class="fc" id="L190">                .getXmlRecord();</span>
+    }
+
+    private ProcessingContext processXml(String xmlStr) throws ParsingException, IOException {
+<span class="fc" id="L194">        ProcessingContext context = new ProcessingContext();</span>
+<span class="fc" id="L195">        final Builder parser = new Builder();</span>
+<span class="fc" id="L196">        final nu.xom.Document xmlRecord = parser.build(xmlStr, null);</span>
+<span class="fc" id="L197">        final Element element = xmlRecord.getRootElement();</span>
+
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        for (Element child : element.getChildElements()) {</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">            if (child.getAttributeCount() == 0) {</span>
+<span class="nc" id="L201">                child.addAttribute(new Attribute(&quot;m&quot;, &quot;1&quot;));</span>
+            }
+<span class="fc" id="L203">            applyChildMapping(context, child);</span>
+<span class="fc" id="L204">        }</span>
+<span class="fc" id="L205">        enrichMappedData(context);</span>
+<span class="fc" id="L206">        return context;</span>
+    }
+
+    private void applyChildMapping(ProcessingContext context, Element child) {
+<span class="pc bpc" id="L210" title="1 of 11 branches missed.">        switch (child.getLocalName()) {</span>
+<span class="pc bpc" id="L211" title="1 of 4 branches missed.">            case String ignored when &quot;c1&quot;.equals(ignored) &amp;&amp; !&quot;@ID&quot;.equals(child.getValue()) -&gt;</span>
+<span class="fc" id="L212">                    context.nameField.put(child.getAttributeValue(&quot;m&quot;), child.getValue().replace(&quot;.&quot;, &quot;_&quot;));</span>
+<span class="pc bpc" id="L213" title="1 of 4 branches missed.">            case String ignored when &quot;c2&quot;.equals(ignored) &amp;&amp; &quot;D&quot;.equals(child.getValue()) -&gt;</span>
+<span class="fc" id="L214">                    context.dataField.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+<span class="pc bpc" id="L215" title="1 of 4 branches missed.">            case String ignored when &quot;c3&quot;.equals(ignored) &amp;&amp; !&quot;0&quot;.equals(child.getValue()) -&gt;</span>
+<span class="fc" id="L216">                    context.fieldNo.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+<span class="fc" id="L217">            case &quot;c4&quot; -&gt; context.dataTypeField.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+<span class="fc" id="L218">            case &quot;c6&quot; -&gt; context.lengthField.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+<span class="fc" id="L219">            case &quot;c10&quot; -&gt; context.typeField.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+<span class="fc" id="L220">            case &quot;c15&quot; -&gt; context.usrFieldName.put(child.getAttributeValue(&quot;m&quot;), child.getValue().replace(&quot;.&quot;, &quot;_&quot;));</span>
+<span class="pc bpc" id="L221" title="2 of 6 branches missed.">            case String ignored when &quot;c17&quot;.equals(ignored) &amp;&amp; child.getValue().contains(&quot;,&quot;) &amp;&amp; child.getValue().contains(&quot;&gt;&quot;) -&gt;</span>
+<span class="fc" id="L222">                    context.usrFieldNo.put(child.getAttributeValue(&quot;m&quot;), child.getValue()</span>
+<span class="fc" id="L223">                            .substring(child.getValue().indexOf(',') + 1, child.getValue().indexOf('&gt;')));</span>
+            case &quot;c18&quot; -&gt; {
+<span class="fc bfc" id="L225" title="All 2 branches covered.">                if (child.getValue().contains(&quot;&amp;&quot;)) {</span>
+<span class="fc" id="L226">                    context.usrFieldDataType.put(child.getAttributeValue(&quot;m&quot;),</span>
+<span class="fc" id="L227">                            child.getValue().substring(0, child.getValue().indexOf(&quot;&amp;&quot;)));</span>
+                } else {
+<span class="fc" id="L229">                    context.usrFieldDataType.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+                }
+<span class="fc" id="L231">            }</span>
+<span class="fc" id="L232">            case &quot;c24&quot; -&gt; context.usrFieldtype.put(child.getAttributeValue(&quot;m&quot;), child.getValue());</span>
+            default -&gt; {
+                // Ignore unsupported XML nodes from STANDARD.SELECTION payload.
+<span class="nc" id="L235">            }</span>
+        }
+<span class="fc" id="L237">    }</span>
+
+    private void enrichMappedData(ProcessingContext context) {
+<span class="fc" id="L240">        HashMap&lt;String, String&gt; auxMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L241">        Set&lt;String&gt; field2keys = context.dataField.keySet();</span>
+<span class="fc" id="L242">        field2keys.retainAll(context.fieldNo.keySet());</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">        for (String key : field2keys) {</span>
+<span class="fc" id="L244">            auxMap.put(key, (String) context.fieldNo.get(key));</span>
+<span class="fc" id="L245">        }</span>
+
+<span class="fc" id="L247">        Set&lt;String&gt; auxmapKey = auxMap.keySet();</span>
+<span class="fc" id="L248">        auxmapKey.retainAll(context.nameField.keySet());</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">        for (String name : auxmapKey) {</span>
+<span class="fc" id="L250">            context.sysField.put(&quot;c&quot; + auxMap.get(name), context.nameField.get(name));</span>
+<span class="fc" id="L251">        }</span>
+
+<span class="fc" id="L253">        Set&lt;String&gt; tfkey = context.typeField.keySet();</span>
+<span class="fc" id="L254">        tfkey.retainAll(auxMap.keySet());</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        for (String type : tfkey) {</span>
+<span class="fc" id="L256">            context.enhancedFieldType.put(&quot;c&quot; + auxMap.get(type), context.typeField.get(type));</span>
+<span class="fc" id="L257">        }</span>
+
+<span class="fc" id="L259">        auxmapKey.retainAll(context.nameField.keySet());</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">        for (String name : auxmapKey) {</span>
+<span class="fc" id="L261">            fillSystemFieldData(context, name);</span>
+<span class="fc" id="L262">        }</span>
+
+<span class="fc bfc" id="L264" title="All 2 branches covered.">        for (String dTypeField : field2keys) {</span>
+<span class="fc" id="L265">            fillEnhancedFieldDataType(context, auxMap, dTypeField);</span>
+<span class="fc" id="L266">        }</span>
+
+<span class="fc" id="L268">        fillLocalRefData(context);</span>
+<span class="fc" id="L269">    }</span>
+
+    private void fillSystemFieldData(ProcessingContext context, String name) {
+<span class="fc" id="L272">        String dataType = context.dataTypeField.optString(name, &quot;&quot;);</span>
+<span class="fc" id="L273">        String fieldType = context.typeField.optString(name, &quot;S&quot;);</span>
+<span class="fc" id="L274">        String fieldLength = context.lengthField.optString(name, &quot;MAX&quot;);</span>
+<span class="fc" id="L275">        List&lt;String&gt; missingFields = missingStandardSelectionFields(context, name);</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">        if (!missingFields.isEmpty()) {</span>
+<span class="fc" id="L277">            log.warn(&quot;Champ '{}' du STANDARD.SELECTION incomplet pour la table '{}': champs absents {}, valeurs par defaut utilisees&quot;,</span>
+<span class="fc" id="L278">                    context.nameField.optString(name, name), t24TableName, missingFields);</span>
+        }
+<span class="fc bfc" id="L280" title="All 2 branches covered.">        if (&quot;S&quot;.equals(fieldType)) {</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">            if (isFloatLikeType(dataType)) {</span>
+<span class="fc" id="L282">                context.sysFieldOds.put((String) context.nameField.get(name), &quot;Float.c&quot; + name);</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            } else if (isIntegerLikeType(dataType)) {</span>
+<span class="fc" id="L284">                context.sysFieldOds.put((String) context.nameField.get(name), &quot;Integer.c&quot; + name);</span>
+            } else {
+<span class="fc" id="L286">                context.sysFieldOds.put((String) context.nameField.get(name), STRING_TYPE + fieldLength + &quot;.c&quot; + name);</span>
+            }
+<span class="fc" id="L288">            return;</span>
+        }
+<span class="fc" id="L290">        context.sysFieldOds.put((String) context.nameField.get(name), STRING_TYPE + &quot;MAX.c&quot; + name);</span>
+<span class="fc" id="L291">        multiValueBlobFields.add((String) context.nameField.get(name));</span>
+<span class="fc" id="L292">    }</span>
+
+    private List&lt;String&gt; missingStandardSelectionFields(ProcessingContext context, String name) {
+<span class="fc" id="L295">        List&lt;String&gt; missingFields = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">        if (!context.nameField.has(name)) {</span>
+<span class="nc" id="L297">            missingFields.add(&quot;c1&quot;);</span>
+        }
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">        if (!context.dataField.has(name)) {</span>
+<span class="nc" id="L300">            missingFields.add(&quot;c2&quot;);</span>
+        }
+<span class="pc bpc" id="L302" title="1 of 2 branches missed.">        if (!context.fieldNo.has(name)) {</span>
+<span class="nc" id="L303">            missingFields.add(&quot;c3&quot;);</span>
+        }
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        if (!context.dataTypeField.has(name)) {</span>
+<span class="fc" id="L306">            missingFields.add(&quot;c4&quot;);</span>
+        }
+<span class="pc bpc" id="L308" title="1 of 2 branches missed.">        if (!context.lengthField.has(name)) {</span>
+<span class="nc" id="L309">            missingFields.add(&quot;c6&quot;);</span>
+        }
+<span class="pc bpc" id="L311" title="1 of 2 branches missed.">        if (!context.typeField.has(name)) {</span>
+<span class="nc" id="L312">            missingFields.add(&quot;c10&quot;);</span>
+        }
+<span class="fc" id="L314">        return missingFields;</span>
+    }
+
+    private void fillEnhancedFieldDataType(ProcessingContext context, HashMap&lt;String, String&gt; auxMap, String dTypeField) {
+<span class="fc" id="L318">        String dataType = context.dataTypeField.optString(dTypeField, &quot;&quot;);</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        if (isFloatLikeType(dataType)) {</span>
+<span class="fc" id="L320">            context.enhancedFieldDataType.put(&quot;c&quot; + auxMap.get(dTypeField), &quot;Float&quot;);</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">        } else if (isIntegerLikeType(dataType)) {</span>
+<span class="fc" id="L322">            context.enhancedFieldDataType.put(&quot;c&quot; + auxMap.get(dTypeField), &quot;Integer&quot;);</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">        } else if (dataType.contains(&quot;TEXT&quot;)) {</span>
+<span class="fc" id="L324">            context.enhancedFieldType.put(&quot;c&quot; + auxMap.get(dTypeField), &quot;M&quot;);</span>
+        } else {
+<span class="fc" id="L326">            context.enhancedFieldDataType.put(&quot;c&quot; + auxMap.get(dTypeField), STRING_TYPE);</span>
+        }
+<span class="fc" id="L328">    }</span>
+
+    private void fillLocalRefData(ProcessingContext context) {
+<span class="fc" id="L331">        Set&lt;String&gt; usrFieldKeys = context.usrFieldNo.keySet();</span>
+<span class="fc" id="L332">        usrFieldKeys.retainAll(context.usrFieldName.keySet());</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">        for (String key : usrFieldKeys) {</span>
+<span class="fc" id="L334">            context.usrField.put(&quot;m&quot; + context.usrFieldNo.get(key), context.usrFieldName.get(key));</span>
+<span class="fc" id="L335">        }</span>
+
+<span class="fc" id="L337">        usrFieldKeys.retainAll(context.usrFieldtype.keySet());</span>
+<span class="fc bfc" id="L338" title="All 2 branches covered.">        for (String type : usrFieldKeys) {</span>
+<span class="fc" id="L339">            context.enhancedUsrFieldtype.put(&quot;m&quot; + context.usrFieldNo.get(type), context.usrFieldtype.get(type));</span>
+<span class="fc" id="L340">            context.usrFieldTypeOds.put(context.usrField.get(&quot;m&quot; + context.usrFieldNo.get(type)).toString(), context.usrFieldtype.get(type));</span>
+<span class="fc" id="L341">        }</span>
+
+<span class="fc" id="L343">        usrFieldKeys.retainAll(context.usrFieldDataType.keySet());</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">        for (String dTypeField : usrFieldKeys) {</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">            if (isFloatLikeUsrType(context.usrFieldDataType.get(dTypeField).toString())) {</span>
+<span class="fc" id="L346">                context.enhancedUsrFieldDataType.put(&quot;m&quot; + context.usrFieldNo.get(dTypeField), &quot;Float&quot;);</span>
+            } else {
+<span class="fc" id="L348">                context.enhancedUsrFieldDataType.put(&quot;m&quot; + context.usrFieldNo.get(dTypeField), STRING_TYPE);</span>
+            }
+<span class="fc" id="L350">        }</span>
+
+<span class="fc bfc" id="L352" title="All 2 branches covered.">        for (Map.Entry&lt;String, Object&gt; pos : context.sysField.toMap().entrySet()) {</span>
+<span class="fc bfc" id="L353" title="All 2 branches covered.">            if (pos.getValue().equals(&quot;LOCAL_REF&quot;)) {</span>
+<span class="fc" id="L354">                context.localRefPos = pos.getKey();</span>
+            }
+<span class="fc" id="L356">        }</span>
+<span class="fc" id="L357">    }</span>
+
+    private void putViewQuery(ChunkContext chunkContext, ProcessingContext context, String tafjVocRow) {
+<span class="fc" id="L360">        context.enhancedFieldType.remove(&quot;cD&quot;);</span>
+<span class="fc bfc" id="L361" title="All 2 branches covered.">        if (&quot;X&quot;.equalsIgnoreCase(tafjVocRow)) {</span>
+<span class="fc" id="L362">            return;</span>
+        }
+
+<span class="fc" id="L365">        StringBuilder localRefFields = new StringBuilder();</span>
+<span class="fc" id="L366">        Iterator&lt;Map.Entry&lt;String, Object&gt;&gt; usrIterator = context.usrField.toMap().entrySet().iterator();</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">        while (usrIterator.hasNext()) {</span>
+<span class="fc" id="L368">            Map.Entry&lt;String, Object&gt; entry = usrIterator.next();</span>
+<span class="fc" id="L369">            localRefFields.append(&quot;t.&quot;).append(entry.getValue());</span>
+<span class="fc" id="L370">            blobViewFields.add(entry.getValue().toString());</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">            if (usrIterator.hasNext()) {</span>
+<span class="fc" id="L372">                localRefFields.append(&quot;, &quot;);</span>
+            }
+<span class="fc" id="L374">        }</span>
+
+<span class="fc" id="L376">        StringBuilder viewQuery = new StringBuilder(SELECT_BLOB_VIEW_PREFIX);</span>
+<span class="fc" id="L377">        Iterator&lt;Map.Entry&lt;String, Object&gt;&gt; iterator = context.enhancedFieldType.toMap().entrySet().iterator();</span>
+<span class="fc bfc" id="L378" title="All 2 branches covered.">        while (iterator.hasNext()) {</span>
+<span class="fc" id="L379">            Map.Entry&lt;String, Object&gt; entry = iterator.next();</span>
+<span class="fc bfc" id="L380" title="All 2 branches covered.">            if (!entry.getKey().equals(context.localRefPos)) {</span>
+<span class="fc" id="L381">                viewQuery.append(context.sysField.get(entry.getKey()));</span>
+<span class="fc" id="L382">                blobViewFields.add(context.sysField.get(entry.getKey()).toString());</span>
+<span class="fc bfc" id="L383" title="All 2 branches covered.">                if (iterator.hasNext()) {</span>
+<span class="fc" id="L384">                    viewQuery.append(&quot;, &quot;);</span>
+                }
+            }
+<span class="fc" id="L387">        }</span>
+
+<span class="fc bfc" id="L389" title="All 2 branches covered.">        if (!localRefFields.isEmpty()) {</span>
+<span class="fc" id="L390">            viewQuery.append(&quot;, &quot;).append(localRefFields);</span>
+        }
+<span class="fc" id="L392">        viewQuery.append(String.format(SELECT_BLOB_VIEW_SUFFIX_TPL, oracleTableName));</span>
+<span class="fc" id="L393">        chunkContext.getStepContext().getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L394">                .put(&quot;VIEW_QUERY&quot;, viewQuery.toString());</span>
+<span class="fc" id="L395">    }</span>
+
+    private void putStandardSelectionInExecutionContext(ChunkContext chunkContext, ProcessingContext context) {
+<span class="fc" id="L398">        context.biStandardSelection.put(&quot;sysFieldOds&quot;, context.sysFieldOds);</span>
+
+<span class="fc" id="L400">        context.standardSelectionJs.append(&quot;sysField&quot;, context.sysField);</span>
+<span class="fc" id="L401">        context.standardSelectionJs.append(&quot;typeField&quot;, context.enhancedFieldType);</span>
+<span class="fc" id="L402">        context.standardSelectionJs.append(&quot;DataTypeField&quot;, context.enhancedFieldDataType);</span>
+<span class="fc" id="L403">        context.standardSelectionJs.append(&quot;usrField&quot;, context.usrField);</span>
+<span class="fc" id="L404">        context.standardSelectionJs.append(&quot;UsrFieldType&quot;, context.enhancedUsrFieldtype);</span>
+<span class="fc" id="L405">        context.standardSelectionJs.append(&quot;UsrFieldDataType&quot;, context.enhancedUsrFieldDataType);</span>
+<span class="fc" id="L406">        context.standardSelectionJs.append(&quot;localRefPos&quot;, context.localRefPos);</span>
+
+<span class="fc" id="L408">        context.usrField.toMap().forEach((k, v) -&gt; {</span>
+<span class="fc" id="L409">            String usrFieldType = context.enhancedUsrFieldtype.optString(k, &quot;&quot;);</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">            if (&quot;M&quot;.equals(usrFieldType)) {</span>
+<span class="fc" id="L411">                context.sysFieldOds.put(v.toString(), &quot;Local_Ref_StringMAX.&quot; + k);</span>
+<span class="fc" id="L412">                multiValueBlobFields.add(v.toString());</span>
+            } else {
+<span class="fc" id="L414">                context.sysFieldOds.put(v.toString(), &quot;Local_Ref_String.&quot; + k);</span>
+            }
+<span class="fc" id="L416">        });</span>
+
+<span class="fc" id="L418">        chunkContext.getStepContext().getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L419">                .put(&quot;Mongo_Standard_Selection&quot;, context.standardSelectionJs.toString());</span>
+<span class="fc" id="L420">        chunkContext.getStepContext().getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L421">                .put(&quot;fields&quot;, context.fields);</span>
+<span class="fc" id="L422">        chunkContext.getStepContext().getStepExecution().getJobExecution().getExecutionContext()</span>
+<span class="fc" id="L423">                .put(&quot;sysFieldOds&quot;, context.sysFieldOds.toString());</span>
+<span class="fc" id="L424">    }</span>
+
+    private boolean isIntegerLikeType(String value) {
+<span class="pc bpc" id="L427" title="3 of 8 branches missed.">        return value.contains(&quot;IN2.D&amp;&quot;) || value.contains(&quot;IN2.YM&amp;&quot;) || value.equals(&quot;IN2.D&quot;) || value.equals(&quot;IN2.YM&quot;);</span>
+    }
+
+    private boolean isFloatLikeUsrType(String value) {
+<span class="pc bpc" id="L431" title="3 of 8 branches missed.">        return value.equals(IN2AMT) || value.equals(IN2BMT) || value.equals(IN2CCYDEC) || value.equals(IN2DEC)</span>
+<span class="pc bpc" id="L432" title="4 of 8 branches missed.">                || value.equals(IN2LAMT) || value.equals(IN2NOMAMT) || value.equals(IN2R_AMT) || value.equals(IN2TAX)</span>
+<span class="pc bpc" id="L433" title="4 of 8 branches missed.">                || value.equals(IN2FWDR) || value.equals(IN2PRICE) || value.equals(&quot;IN2R&quot;) || value.equals(IN2RR);</span>
+    }
+
+    private boolean isFloatLikeType(String value) {
+<span class="pc bpc" id="L437" title="3 of 8 branches missed.">        return value.equals(IN2BMT) || value.equals(IN2AMT) || value.contains(IN2AMT_AMP) || value.contains(IN2BMT_AMP)</span>
+<span class="pc bpc" id="L438" title="4 of 8 branches missed.">                || value.equals(IN2CCYDEC) || value.contains(IN2CCYDEC_AMP) || value.equals(IN2DEC) || value.contains(IN2DEC_AMP)</span>
+<span class="pc bpc" id="L439" title="4 of 8 branches missed.">                || value.equals(IN2LAMT) || value.contains(IN2LAMT_AMP) || value.equals(IN2NOMAMT) || value.contains(IN2NOMAMT_AMP)</span>
+<span class="pc bpc" id="L440" title="4 of 8 branches missed.">                || value.equals(IN2R_AMT) || value.contains(IN2R_AMT_AMP) || value.equals(IN2TAX) || value.contains(IN2TAX_AMP)</span>
+<span class="pc bpc" id="L441" title="4 of 8 branches missed.">                || value.equals(IN2FWDR) || value.contains(IN2FWDR_AMP) || value.equals(IN2PRICE) || value.contains(IN2PRICE_AMP)</span>
+<span class="pc bpc" id="L442" title="4 of 8 branches missed.">                || value.equals(&quot;IN2R&quot;) || value.contains(&quot;IN2R&amp;&quot;) || value.equals(IN2RR) || value.contains(IN2RR_AMP);</span>
+    }
+
+<span class="fc" id="L445">    private static final class ProcessingContext {</span>
+<span class="fc" id="L446">        private final JSONObject standardSelectionJs = new JSONObject();</span>
+<span class="fc" id="L447">        private final JSONObject fieldNo = new JSONObject();</span>
+<span class="fc" id="L448">        private final JSONObject sysField = new JSONObject();</span>
+<span class="fc" id="L449">        private final JSONObject dataField = new JSONObject();</span>
+<span class="fc" id="L450">        private final JSONObject lengthField = new JSONObject();</span>
+<span class="fc" id="L451">        private final JSONObject nameField = new JSONObject();</span>
+<span class="fc" id="L452">        private final JSONObject typeField = new JSONObject();</span>
+<span class="fc" id="L453">        private final JSONObject enhancedFieldType = new JSONObject();</span>
+<span class="fc" id="L454">        private final JSONObject enhancedFieldDataType = new JSONObject();</span>
+<span class="fc" id="L455">        private final JSONObject usrField = new JSONObject();</span>
+<span class="fc" id="L456">        private final JSONObject sysFieldOds = new JSONObject();</span>
+<span class="fc" id="L457">        private final JSONObject biStandardSelection = new JSONObject();</span>
+<span class="fc" id="L458">        private final JSONObject dataTypeField = new JSONObject();</span>
+<span class="fc" id="L459">        private final JSONObject usrFieldNo = new JSONObject();</span>
+<span class="fc" id="L460">        private final JSONObject usrFieldName = new JSONObject();</span>
+<span class="fc" id="L461">        private final JSONObject usrFieldtype = new JSONObject();</span>
+<span class="fc" id="L462">        private final JSONObject usrFieldDataType = new JSONObject();</span>
+<span class="fc" id="L463">        private final JSONObject usrFieldTypeOds = new JSONObject();</span>
+<span class="fc" id="L464">        private final JSONObject enhancedUsrFieldtype = new JSONObject();</span>
+<span class="fc" id="L465">        private final JSONObject enhancedUsrFieldDataType = new JSONObject();</span>
+<span class="fc" id="L466">        private final List&lt;String&gt; fields = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L467">        private String localRefPos = &quot;&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

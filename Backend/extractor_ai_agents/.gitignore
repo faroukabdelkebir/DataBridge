@@ -1,0 +1,14 @@
+# Secrets — ne JAMAIS commiter
+.env
+
+# Environnements & artefacts Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+
+# IDE / outils locaux
+.vscode/
+.claude/
+.agents/

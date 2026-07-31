@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TafjVoc.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">LP-T24Extractor</a> &gt; <a href="index.source.html" class="el_package">com.t24extractor.model</a> &gt; <span class="el_source">TafjVoc.java</span></div><h1>TafjVoc.java</h1><pre class="source lang-java linenums">package com.t24extractor.model;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+/**
+ * Correspondance entre un nom de fichier T24 et sa table Oracle physique.
+ *
+ * &lt;p&gt;TAFJ_VOC est le dictionnaire du middleware TAFJ : c'est lui qui indique où
+ * une table T24 est réellement stockée, et sous quelle forme. Le mode de
+ * stockage conditionne toute la suite du traitement — lecture directe du
+ * XMLRECORD, ou passage par une vue éclatée en colonnes.
+ *
+ * @param recid        nom T24 qualifié, par exemple {@code FBNK.CUSTOMER}
+ * @param isBlob       mode de stockage : {@code X} pour XML, {@code B} ou
+ *                     {@code C} pour BLOB/CLOB
+ * @param orclFileName table Oracle correspondante, par exemple
+ *                     {@code FBNK_CUSTOMER}
+ */
+@Table(&quot;TAFJ_VOC&quot;)
+<span class="fc" id="L22">public record TafjVoc(</span>
+        @Id
+        @Column(&quot;RECID&quot;)
+        String recid,
+        @Column(&quot;ISBLOB&quot;)
+        String isBlob,
+        @Column(&quot;ORCLFILENAME&quot;)
+        String orclFileName
+
+) {
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
