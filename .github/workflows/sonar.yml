@@ -1,0 +1,49 @@
+name: Analyse Sonar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build modules Maven
+        run: |
+          for module in AuthMS UserMS EurekaServer MonitoringMS T24Extractor; do
+            echo "::group::Build $module"
+            mvn -B verify -f "Backend/$module/pom.xml" -Dmaven.test.failure.ignore=true
+            echo "::endgroup::"
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Tests frontend
+        working-directory: Frontend
+        continue-on-error: true
+        run: |
+          npm ci
+          npx ng test --coverage
+
+      - name: Analyse SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
