@@ -57,6 +57,8 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
+            "coverage": true,
+            "coverageReporters": ["lcovonly", "text-summary"],
             "tsConfig": "tsconfig.spec.json",
             "runner": "vitest",
             "buildTarget": "bi-dashboard:build:development",
