@@ -9,3 +9,6 @@ __pycache__/
 .idea/
 .vscode/
 coverage/
+.coverage
+coverage.xml
+.pytest_cache/
