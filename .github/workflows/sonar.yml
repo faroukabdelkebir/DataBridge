@@ -23,14 +23,13 @@ jobs:
 
       - name: Build modules Maven
         run: |
-            for module in AuthMS UserMS EurekaServer MonitoringMS T24Extractor; do
+          for module in AuthMS UserMS EurekaServer MonitoringMS T24Extractor; do
             echo "::group::Build $module"
             mvn -B verify dependency:copy-dependencies \
               -DoutputDirectory=target/dependency \
-              -f "Backend/$module/pom.xml" \
-              -Dmaven.test.failure.ignore=true
+              -f "Backend/$module/pom.xml"
             echo "::endgroup::"
-            done
+          done
 
       - name: Vérifier les répertoires de classes
         run: ls -d Backend/*/target/test-classes || echo "AUCUN test-classes trouvé"
@@ -44,7 +43,6 @@ jobs:
 
       - name: Tests frontend
         working-directory: Frontend
-        continue-on-error: true
         run: |
           npm ci
           npx ng test --coverage
