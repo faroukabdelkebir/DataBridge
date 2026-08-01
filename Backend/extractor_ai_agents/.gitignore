@@ -7,6 +7,11 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
 
 # IDE / outils locaux
 .vscode/
