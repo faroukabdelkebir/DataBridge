@@ -93,6 +93,13 @@ services:
       APP_BFF_TARGETS_EXTRACTOR: "http://t24extractor:65005"
       # Doit etre l'URL vue par le navigateur (inscrite dans les JWT)
       APP_OAUTH2_ISSUER: ${PUBLIC_URL}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      AUTH_SERVICE_CLIENT_SECRET: ${AUTH_SERVICE_CLIENT_SECRET}
+      ETL_CLIENT_SECRET: ${ETL_CLIENT_SECRET}
+      RESET_TOKEN_EXP_MIN: ${RESET_TOKEN_EXP_MIN}
     depends_on:
       mysql: {condition: service_healthy}
       eureka: {condition: service_started}
