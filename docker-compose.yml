@@ -124,13 +124,12 @@ services:
       APP_OAUTH2_ISSUER: ${PUBLIC_URL}
       FRONTEND_URL: ${PUBLIC_URL}
 
-      # --- Keystore JWK (optionnel : vide = cle ephemere) ---
-      JWK_KEYSTORE_PATH: ${JWK_KEYSTORE_PATH:-}
-      JWK_KEYSTORE_PASSWORD: ${JWK_KEYSTORE_PASSWORD:-}
-      JWK_KEY_ALIAS: ${JWK_KEY_ALIAS:-}
-    # Decommente si tu deploies un keystore persistant :
-    # volumes:
-    #   - ./secrets/auth-jwt.p12:/opt/auth/auth-jwt.p12:ro
+      # --- Keystore JWK  ---
+      JWK_KEYSTORE_PATH: ${JWK_KEYSTORE_PATH}
+      JWK_KEYSTORE_PASSWORD: ${JWK_KEYSTORE_PASSWORD}
+      JWK_KEY_ALIAS: ${JWK_KEY_ALIAS}
+    volumes:
+      - ./secrets/auth-jwt.p12:/opt/auth/auth-jwt.p12:ro
     depends_on:
       mysql: {condition: service_healthy}
       eureka: {condition: service_started}
