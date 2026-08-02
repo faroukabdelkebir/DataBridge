@@ -1,0 +1,137 @@
+name: Build et deploiement
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ==================================================================
+  #  1. Construction des images, en parallele
+  #
+  #  Les Dockerfiles Java ne contiennent PAS d'etape de compilation :
+  #  le jar est produit par Maven ici, puis simplement copie dans
+  #  l'image. Les tests sont deja joues par le workflow Sonar,
+  #  d'ou le -DskipTests.
+  # ==================================================================
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: eureka
+            context: Backend/EurekaServer
+            maven: true
+          - name: authms
+            context: Backend/AuthMS
+            maven: true
+          - name: userms
+            context: Backend/UserMS
+            maven: true
+          - name: monitoringms
+            context: Backend/MonitoringMS
+            maven: true
+          - name: ai-agents
+            context: Backend/extractor_ai_agents
+            maven: false
+          - name: frontend
+            context: Frontend
+            maven: false
+          # Reactiver quand Oracle sera deploye :
+          # - name: t24extractor
+          #   context: Backend/T24Extractor
+          #   maven: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # ---- Compilation Maven (modules Java uniquement) -------------
+      - name: Setup Java 21
+        if: matrix.maven
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compiler le jar
+        if: matrix.maven
+        run: mvn -B clean package -DskipTests -f "${{ matrix.context }}/pom.xml"
+
+      - name: Verifier la presence du jar
+        if: matrix.maven
+        run: ls -lh "${{ matrix.context }}"/target/*.jar
+
+      # ---- Acces au registre Nexus ---------------------------------
+      # Nexus n'est pas expose sur Internet : on ouvre un tunnel SSH
+      # vers son instance et on pousse vers localhost:8082.
+      - name: Ouvrir un tunnel SSH vers Nexus
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.NEXUS_HOST }} >> ~/.ssh/known_hosts
+          ssh -f -N -L 8082:localhost:8082 -i ~/.ssh/id_rsa ubuntu@${{ secrets.NEXUS_HOST }}
+          sleep 3
+
+      - name: Autoriser le registre en HTTP
+        run: |
+          echo '{ "insecure-registries": ["localhost:8082"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          sleep 5
+
+      - name: Authentification au registre
+        run: |
+          echo "${{ secrets.NEXUS_PASSWORD }}" \
+            | docker login localhost:8082 -u ${{ secrets.NEXUS_USER }} --password-stdin
+
+      # ---- Image ---------------------------------------------------
+      - name: Construire ${{ matrix.name }}
+        run: |
+          docker build \
+            -t localhost:8082/databridge-${{ matrix.name }}:latest \
+            -t localhost:8082/databridge-${{ matrix.name }}:${{ github.sha }} \
+            "${{ matrix.context }}"
+
+      - name: Pousser ${{ matrix.name }}
+        run: |
+          docker push localhost:8082/databridge-${{ matrix.name }}:latest
+          docker push localhost:8082/databridge-${{ matrix.name }}:${{ github.sha }}
+
+  # ==================================================================
+  #  2. Deploiement sur l'instance applicative
+  # ==================================================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Envoyer les fichiers de deploiement
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml,Gateway/KongGateway/kong.yml"
+          target: "~/databridge"
+
+      - name: Redeployer
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/databridge
+            # scp conserve l'arborescence : on remonte kong.yml a plat
+            cp Gateway/KongGateway/kong.yml ./kong.yml
+            # TAG surcharge la valeur du .env pour ce deploiement
+            sed -i "s|^TAG=.*|TAG=${{ github.sha }}|" .env
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+            sleep 30
+            docker compose ps
