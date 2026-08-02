@@ -125,9 +125,9 @@ services:
       FRONTEND_URL: ${PUBLIC_URL}
 
       # --- Keystore JWK  ---
-      JWK_KEYSTORE_PATH: ${JWK_KEYSTORE_PATH}
-      JWK_KEYSTORE_PASSWORD: ${JWK_KEYSTORE_PASSWORD}
-      JWK_KEY_ALIAS: ${JWK_KEY_ALIAS}
+      JWK_KEYSTORE_PATH: ${JWK_KEYSTORE_PATH:-}
+      JWK_KEYSTORE_PASSWORD: ${JWK_KEYSTORE_PASSWORD:-}
+      JWK_KEY_ALIAS: ${JWK_KEY_ALIAS:-}
     volumes:
       - ./secrets/auth-jwt.p12:/opt/auth/auth-jwt.p12:ro
     depends_on:
