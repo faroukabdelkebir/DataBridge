@@ -2,6 +2,7 @@ package wevioo.se.authms.Entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -39,7 +40,8 @@ public class AuthAuditLog {
 
     /** Identifiant technique de l'entrée, généré par la base. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @UuidGenerator
+    @Column(nullable = false, updatable = false)
     private UUID id;
 
     /** Nature de l'évènement journalisé, stockée sous forme de libellé. */
