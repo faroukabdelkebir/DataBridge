@@ -1,9 +1,11 @@
 # =====================================================================
 #  DataBridge - deploiement EC2 (13.219.70.231)
-#  A placer a la racine du depot.
+#  A placer a la RACINE DU DEPOT (il est envoye par scp a chaque deploiement).
 #
+#  Sur le serveur :
+#     cd ~/databridge && docker compose pull && docker compose up -d
 #
-#  Les valeurs sensibles viennent du fichier .env (NON versionne).
+#  Les valeurs sensibles viennent de ~/databridge/.env (NON versionne).
 # =====================================================================
 
 x-jvm: &jvm
@@ -73,7 +75,7 @@ services:
       start_period: 60s
 
   # ---------------------------------------------------------------
-  #  Microservices Java
+  #  AuthMS  (BFF + serveur OAuth2)
   # ---------------------------------------------------------------
   authms:
     <<: *jvm
@@ -81,29 +83,61 @@ services:
     mem_limit: 650m
     environment:
       <<: *jvm-env
+
+      # --- Base de donnees ---
       DB_URL: "jdbc:mysql://mysql:3306/authms?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+
+      # --- JWT ---
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXP_MS: "900000"
       JWT_REFRESH_EXP_MS: "604800000"
+
+      # --- Secrets OAuth2 ---
       BFF_CLIENT_SECRET: ${BFF_CLIENT_SECRET}
-      APP_BFF_TARGETS_USERMS: "http://userms:8085"
-      APP_BFF_TARGETS_AIAGENTS: "http://ai-agents:65015"
-      APP_BFF_TARGETS_EXTRACTOR: "http://t24extractor:65005"
-      # Doit etre l'URL vue par le navigateur (inscrite dans les JWT)
-      APP_OAUTH2_ISSUER: ${PUBLIC_URL}
+      AUTH_SERVICE_CLIENT_SECRET: ${AUTH_SERVICE_CLIENT_SECRET}
+      ETL_CLIENT_SECRET: ${ETL_CLIENT_SECRET}
+      RESET_TOKEN_EXP_MIN: ${RESET_TOKEN_EXP_MIN}
+
+      # --- Mail ---
       MAIL_HOST: ${MAIL_HOST}
       MAIL_PORT: ${MAIL_PORT}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
-      AUTH_SERVICE_CLIENT_SECRET: ${AUTH_SERVICE_CLIENT_SECRET}
-      ETL_CLIENT_SECRET: ${ETL_CLIENT_SECRET}
-      RESET_TOKEN_EXP_MIN: ${RESET_TOKEN_EXP_MIN}
+
+      # --- URLs internes ---
+      # ATTENTION : deux proprietes DIFFERENTES pointent vers UserMS.
+      #   app.bff.targets.userms  -> ProxyController
+      #   app.user-service.url    -> bean RestClient de InfraConfig
+      # Les deux doivent etre surchargees, sinon le RestClient garde
+      # sa valeur par defaut http://localhost:8085 et le login echoue.
+      APP_BFF_TARGETS_USERMS: "http://userms:8085"
+      APP_BFF_TARGETS_AIAGENTS: "http://ai-agents:65015"
+      APP_BFF_TARGETS_EXTRACTOR: "http://t24extractor:65005"
+      # Le tiret de "user-service" disparait a la conversion.
+      # SPRING_APPLICATION_JSON est utilise en secours car plus fiable.
+      APP_USERSERVICE_URL: "http://userms:8085"
+      SPRING_APPLICATION_JSON: '{"app":{"user-service":{"url":"http://userms:8085"}}}'
+
+      # --- URL publique (issuer OAuth2, vue par le navigateur) ---
+      APP_OAUTH2_ISSUER: ${PUBLIC_URL}
+      FRONTEND_URL: ${PUBLIC_URL}
+
+      # --- Keystore JWK (optionnel : vide = cle ephemere) ---
+      JWK_KEYSTORE_PATH: ${JWK_KEYSTORE_PATH:-}
+      JWK_KEYSTORE_PASSWORD: ${JWK_KEYSTORE_PASSWORD:-}
+      JWK_KEY_ALIAS: ${JWK_KEY_ALIAS:-}
+    # Decommente si tu deploies un keystore persistant :
+    # volumes:
+    #   - ./secrets/auth-jwt.p12:/opt/auth/auth-jwt.p12:ro
     depends_on:
       mysql: {condition: service_healthy}
       eureka: {condition: service_started}
 
+  # ---------------------------------------------------------------
+  #  UserMS
+  # ---------------------------------------------------------------
   userms:
     <<: *jvm
     image: ${REGISTRY}/databridge-userms:${TAG:-latest}
@@ -115,13 +149,23 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      # Validation locale via le reseau Docker, issuer public
+      AUTHMS_URL: "http://authms:8090"
+      # Validation locale des jetons, issuer public
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: "http://authms:8090/oauth2/jwks"
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI: ${PUBLIC_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     depends_on:
       mysql: {condition: service_healthy}
       authms: {condition: service_started}
 
+  # ---------------------------------------------------------------
+  #  MonitoringMS
+  # ---------------------------------------------------------------
   monitoringms:
     <<: *jvm
     image: ${REGISTRY}/databridge-monitoringms:${TAG:-latest}
@@ -132,13 +176,16 @@ services:
       BI_DB: ${BI_DB}
       BI_USER: ${BI_USER}
       BI_PASS: ${BI_PASS}
+      AUTHMS_URL: "http://authms:8090"
     depends_on:
       sqlserver: {condition: service_healthy}
       eureka: {condition: service_started}
 
-  # ATTENTION : ce service exige Oracle.
-  # Laisse-le commente tant qu'Oracle n'est pas deploye,
-  # sinon il redemarrera en boucle.
+  # ---------------------------------------------------------------
+  #  T24Extractor - exige Oracle.
+  #  Laisser commente tant qu'Oracle n'est pas deploye,
+  #  sinon le conteneur redemarre en boucle.
+  # ---------------------------------------------------------------
   # t24extractor:
   #   <<: *jvm
   #   image: ${REGISTRY}/databridge-t24extractor:${TAG:-latest}
@@ -154,12 +201,13 @@ services:
   #     BI_USER: ${BI_USER}
   #     BI_PASS: ${BI_PASS}
   #     AUTHMS_URL: "http://authms:8090"
+  #     INTERNAL_API_KEY: ${INTERNAL_API_KEY}
   #   depends_on:
   #     sqlserver: {condition: service_healthy}
   #     eureka: {condition: service_started}
 
   # ---------------------------------------------------------------
-  #  Agents IA (Django)
+  #  Agents IA (Django + gunicorn)
   # ---------------------------------------------------------------
   ai-agents:
     image: ${REGISTRY}/databridge-ai-agents:${TAG:-latest}
@@ -176,9 +224,13 @@ services:
     networks: [databridge]
 
   # ---------------------------------------------------------------
-  #  Passerelle Kong (mode declaratif, sans base)
-  #  NOTE : aucun port publie. Kong n'est joignable que via nginx,
+  #  Kong (mode declaratif, sans base)
+  #  Aucun port publie : Kong n'est joignable que via nginx,
   #  ce qui evite CORS et n'expose pas l'API d'administration.
+  #
+  #  NOTE : Kong met en cache la resolution DNS. Apres un
+  #  "--force-recreate" d'un service amont, faire :
+  #      docker compose restart kong
   # ---------------------------------------------------------------
   kong:
     image: kong:3.9
@@ -192,6 +244,10 @@ services:
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_LOG_LEVEL: warn
+      # Reduit la duree de vie du cache DNS
+      KONG_DNS_STALE_TTL: "5"
+      KONG_DNS_NOT_FOUND_TTL: "5"
+      KONG_DNS_ERROR_TTL: "5"
     volumes:
       - ./kong.yml:/kong/kong.yml:ro
     healthcheck:
@@ -206,7 +262,7 @@ services:
     networks: [databridge]
 
   # ---------------------------------------------------------------
-  #  Frontend Angular (seul point d'entree public)
+  #  Frontend Angular - seul point d'entree public (port 80)
   # ---------------------------------------------------------------
   frontend:
     image: ${REGISTRY}/databridge-frontend:${TAG:-latest}
