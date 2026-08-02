@@ -1,105 +1,59 @@
-# _format_version: "3.0"
-# _transform: true
-
-
-# services:
-#   - name: userms
-#     url: http://user-ms:8085
-#     routes:
-#       - name: userms-route
-#         paths: [/userms]
-#         strip_path: true
-
-#   - name: authms
-#     url: http://auth-ms:8090
-#     read_timeout: 600000
-#     write_timeout: 600000
-#     routes:
-#       - name: authms-route
-#         paths: [/authms]
-#         strip_path: true
-
-#   - name: extractor
-#     url: http://extractor-t24:65005
-#     routes:
-#       - name: extractor-route
-#         paths: [/extractor]
-#         strip_path: true
-
-#   - name: monitoring
-#     url: http://monitoring-ms:65010
-#     routes:
-#       - name: monitoring-route
-#         paths: [/monitoring]
-#         strip_path: true
-
-#   - name: aiagents
-#     url: http://extractor-ai:65015
-#     # Les agents LLM peuvent être lents : on allonge les timeouts (en ms)
-#     connect_timeout: 60000
-#     read_timeout: 600000
-#     write_timeout: 600000
-#     routes:
-#       - name: aiagents-route
-#         paths: [/aiagents]
-#         strip_path: true
-#     plugins:
-#       # Protection contre la saturation d'Ollama (agents coûteux en CPU/GPU)
-#       - name: rate-limiting
-#         config:
-#           minute: 10
-#           policy: local
-
-# plugins:
-#   - name: cors
-#     config:
-#       origins:
-#         # Doit correspondre au port hôte du frontend (FRONTEND_PORT dans .env).
-#         # Ajouter ici l'origine de production quand vous déploierez.
-#         - http://localhost:4200
-#       methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-#       headers: [Accept, Authorization, Content-Type, Origin, X-Requested-With]
-#       exposed_headers: [Authorization]
-#       credentials: true
-#       max_age: 3600
+# =====================================================================
+#  Kong - configuration declarative (mode DB-less)
+#
+#  DIFFERENCE AVEC LA VERSION LOCALE :
+#  en local les services tournaient sur l'hote, d'ou host.docker.internal.
+#  En production tout est conteneurise sur le reseau "databridge",
+#  on utilise donc directement les noms de services Docker.
+#
+#  CORS : le frontend appelle Kong via nginx en chemin relatif
+#  (meme origine), le plugin cors n'est donc plus necessaire.
+#  Il est conserve en commentaire au cas ou tu exposerais Kong
+#  directement sur le port 8000.
+# =====================================================================
 
 _format_version: "3.0"
 _transform: true
 
 services:
   - name: userms
-    url: http://host.docker.internal:8085
+    url: http://userms:8085
     routes:
       - name: userms-route
         paths: [/userms]
         strip_path: true
 
   - name: authms
-    url: http://host.docker.internal:8090
+    url: http://authms:8090
     read_timeout: 600000
     write_timeout: 600000
     routes:
       - name: authms-route
         paths: [/authms]
         strip_path: true
+      # Endpoints OAuth2 servis a la racine : le client et les
+      # resource servers doivent y acceder sans prefixe.
+      - name: authms-oauth2-route
+        paths: [/oauth2, /.well-known]
+        strip_path: false
 
   - name: extractor
-    url: http://host.docker.internal:65005
+    url: http://t24extractor:65005
     routes:
       - name: extractor-route
         paths: [/extractor]
         strip_path: true
 
   - name: monitoring
-    url: http://host.docker.internal:65010
+    url: http://monitoringms:65010
     routes:
       - name: monitoring-route
         paths: [/monitoring]
         strip_path: true
 
   - name: aiagents
-    url: http://host.docker.internal:65015
-    # Les agents LLM peuvent être lents : on allonge les timeouts (en ms)
+    url: http://ai-agents:65015
+    # Les agents LLM peuvent etre lents : on allonge les timeouts (en ms)
     connect_timeout: 60000
     read_timeout: 600000
     write_timeout: 600000
@@ -108,19 +62,23 @@ services:
         paths: [/aiagents]
         strip_path: true
     plugins:
-      # Protection contre la saturation d'Ollama (agents coûteux en CPU/GPU)
+      # Protection contre la saturation d'Ollama (agents couteux en CPU)
       - name: rate-limiting
         config:
           minute: 10
           policy: local
-          
-plugins:
-  - name: cors
-    config:
-      origins:
-        - http://localhost:4200
-      methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-      headers: [Accept, Authorization, Content-Type, Origin, X-Requested-With]
-      exposed_headers: [Authorization]
-      credentials: true
-      max_age: 3600
+
+# ---------------------------------------------------------------------
+#  A DECOMMENTER uniquement si le frontend appelle Kong
+#  sur une origine differente (port 8000 expose publiquement).
+# ---------------------------------------------------------------------
+# plugins:
+#   - name: cors
+#     config:
+#       origins:
+#         - http://13.219.70.231
+#       methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+#       headers: [Accept, Authorization, Content-Type, Origin, X-Requested-With]
+#       exposed_headers: [Authorization]
+#       credentials: true
+#       max_age: 3600

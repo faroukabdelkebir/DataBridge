@@ -1,0 +1,220 @@
+# =====================================================================
+#  DataBridge - deploiement EC2 (13.219.70.231)
+#  A placer a la racine du depot.
+#
+#
+#  Les valeurs sensibles viennent du fichier .env (NON versionne).
+# =====================================================================
+
+x-jvm: &jvm
+  restart: unless-stopped
+  networks: [databridge]
+  environment: &jvm-env
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC"
+    EUREKA_URL: "http://eureka:8761/eureka"
+    MONITOR_URL: "http://eureka:8761/eureka"
+
+services:
+
+  # ---------------------------------------------------------------
+  #  Bases de donnees
+  # ---------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: bank_user
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    command: --innodb-buffer-pool-size=256M --max-connections=50
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 700m
+    networks: [databridge]
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    user: root
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: Express
+      MSSQL_MEMORY_LIMIT_MB: "1400"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 90s
+    mem_limit: 2200m
+    networks: [databridge]
+
+  # ---------------------------------------------------------------
+  #  Service discovery
+  # ---------------------------------------------------------------
+  eureka:
+    <<: *jvm
+    image: ${REGISTRY}/databridge-eureka:${TAG:-latest}
+    mem_limit: 450m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # ---------------------------------------------------------------
+  #  Microservices Java
+  # ---------------------------------------------------------------
+  authms:
+    <<: *jvm
+    image: ${REGISTRY}/databridge-authms:${TAG:-latest}
+    mem_limit: 650m
+    environment:
+      <<: *jvm-env
+      DB_URL: "jdbc:mysql://mysql:3306/authms?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXP_MS: "900000"
+      JWT_REFRESH_EXP_MS: "604800000"
+      BFF_CLIENT_SECRET: ${BFF_CLIENT_SECRET}
+      APP_BFF_TARGETS_USERMS: "http://userms:8085"
+      APP_BFF_TARGETS_AIAGENTS: "http://ai-agents:65015"
+      APP_BFF_TARGETS_EXTRACTOR: "http://t24extractor:65005"
+      # Doit etre l'URL vue par le navigateur (inscrite dans les JWT)
+      APP_OAUTH2_ISSUER: ${PUBLIC_URL}
+    depends_on:
+      mysql: {condition: service_healthy}
+      eureka: {condition: service_started}
+
+  userms:
+    <<: *jvm
+    image: ${REGISTRY}/databridge-userms:${TAG:-latest}
+    mem_limit: 600m
+    environment:
+      <<: *jvm-env
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/bank_user?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Validation locale via le reseau Docker, issuer public
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: "http://authms:8090/oauth2/jwks"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI: ${PUBLIC_URL}
+    depends_on:
+      mysql: {condition: service_healthy}
+      authms: {condition: service_started}
+
+  monitoringms:
+    <<: *jvm
+    image: ${REGISTRY}/databridge-monitoringms:${TAG:-latest}
+    mem_limit: 600m
+    environment:
+      <<: *jvm-env
+      BI_URL: "sqlserver:1433"
+      BI_DB: ${BI_DB}
+      BI_USER: ${BI_USER}
+      BI_PASS: ${BI_PASS}
+    depends_on:
+      sqlserver: {condition: service_healthy}
+      eureka: {condition: service_started}
+
+  # ATTENTION : ce service exige Oracle.
+  # Laisse-le commente tant qu'Oracle n'est pas deploye,
+  # sinon il redemarrera en boucle.
+  # t24extractor:
+  #   <<: *jvm
+  #   image: ${REGISTRY}/databridge-t24extractor:${TAG:-latest}
+  #   mem_limit: 650m
+  #   environment:
+  #     <<: *jvm-env
+  #     ORACLE_URL: ${ORACLE_URL}
+  #     ORACLE_SID: ${ORACLE_SID}
+  #     ORACLE_USERNAME: ${ORACLE_USERNAME}
+  #     ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+  #     BI_URL: "sqlserver:1433"
+  #     BI_DB: ${BI_DB}
+  #     BI_USER: ${BI_USER}
+  #     BI_PASS: ${BI_PASS}
+  #     AUTHMS_URL: "http://authms:8090"
+  #   depends_on:
+  #     sqlserver: {condition: service_healthy}
+  #     eureka: {condition: service_started}
+
+  # ---------------------------------------------------------------
+  #  Agents IA (Django)
+  # ---------------------------------------------------------------
+  ai-agents:
+    image: ${REGISTRY}/databridge-ai-agents:${TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 500m
+    environment:
+      AUTHMS_URL: "http://authms:8090"
+      BI_URL: "sqlserver:1433"
+      BI_DB: ${BI_DB}
+      BI_USER: ${BI_USER}
+      BI_PASS: ${BI_PASS}
+    depends_on:
+      sqlserver: {condition: service_healthy}
+    networks: [databridge]
+
+  # ---------------------------------------------------------------
+  #  Passerelle Kong (mode declaratif, sans base)
+  #  NOTE : aucun port publie. Kong n'est joignable que via nginx,
+  #  ce qui evite CORS et n'expose pas l'API d'administration.
+  # ---------------------------------------------------------------
+  kong:
+    image: kong:3.9
+    restart: unless-stopped
+    mem_limit: 400m
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_LOG_LEVEL: warn
+    volumes:
+      - ./kong.yml:/kong/kong.yml:ro
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - authms
+      - userms
+    networks: [databridge]
+
+  # ---------------------------------------------------------------
+  #  Frontend Angular (seul point d'entree public)
+  # ---------------------------------------------------------------
+  frontend:
+    image: ${REGISTRY}/databridge-frontend:${TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 100m
+    ports:
+      - "80:80"
+    depends_on:
+      - kong
+    networks: [databridge]
+
+volumes:
+  mysql-data:
+  mssql-data:
+
+networks:
+  databridge:
+    driver: bridge
