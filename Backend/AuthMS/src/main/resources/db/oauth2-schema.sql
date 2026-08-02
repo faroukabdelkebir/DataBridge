@@ -64,43 +64,40 @@ CREATE TABLE IF NOT EXISTS oauth2_authorization_consent (
     );
 
 -- ── Refresh Tokens (custom – for user sessions) ─────────────
-CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id          BIGINT        NOT NULL AUTO_INCREMENT,
-    token       VARCHAR(512)  NOT NULL,
-    user_id     BIGINT        NOT NULL,
-    expires_at  TIMESTAMP     NOT NULL,
-    revoked     BOOLEAN       NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_refresh_token (token),
-    INDEX       idx_rt_user_id (user_id)
-    );
+-- CREATE TABLE IF NOT EXISTS refresh_tokens (
+--    id          BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+--    token       VARCHAR(512)  NOT NULL,
+--    user_id     BIGINT        NOT NULL,
+--    expires_at  TIMESTAMP     NOT NULL,
+--    revoked     BOOLEAN       NOT NULL DEFAULT FALSE,
+#     created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+#     UNIQUE KEY uk_refresh_token (token),
+#     INDEX       idx_rt_user_id (user_id)
+#     );
 
 -- ── Password Reset Tokens ────────────────────────────────────
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
-    id          BIGINT        NOT NULL AUTO_INCREMENT,
-    token       VARCHAR(256)  NOT NULL,
-    user_id     BIGINT        NOT NULL,
-    expires_at  TIMESTAMP     NOT NULL,
-    used        BOOLEAN       NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_prt_token (token),
-    INDEX       idx_prt_user_id (user_id)
-    );
+# CREATE TABLE IF NOT EXISTS password_reset_tokens (
+#     id          BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+#     token       VARCHAR(256)  NOT NULL,
+#     user_id     BIGINT        NOT NULL,
+#     expires_at  TIMESTAMP     NOT NULL,
+#     used        BOOLEAN       NOT NULL DEFAULT FALSE,
+#     created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+#     UNIQUE KEY uk_prt_token (token),
+#     INDEX       idx_prt_user_id (user_id)
+#     );
 
 -- ── Audit Log ────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS auth_audit_log (
-    id          BIGINT        NOT NULL AUTO_INCREMENT,
-    event_type  VARCHAR(50)   NOT NULL,
-    username    VARCHAR(100)  DEFAULT NULL,
-    ip_address  VARCHAR(45)   DEFAULT NULL,
-    user_agent  VARCHAR(500)  DEFAULT NULL,
-    success     BOOLEAN       NOT NULL,
-    detail      VARCHAR(500)  DEFAULT NULL,
-    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    INDEX idx_aal_username   (username),
-    INDEX idx_aal_event_type (event_type),
-    INDEX idx_aal_created_at (created_at)
-    );
+# CREATE TABLE IF NOT EXISTS auth_audit_log (
+#     id          BIGINT        NOT NULL  PRIMARY KEY,
+#     event_type  VARCHAR(50)   NOT NULL,
+#     username    VARCHAR(100)  DEFAULT NULL,
+#     ip_address  VARCHAR(45)   DEFAULT NULL,
+#     user_agent  VARCHAR(500)  DEFAULT NULL,
+#     success     BOOLEAN       NOT NULL,
+#     detail      VARCHAR(500)  DEFAULT NULL,
+#     created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+#     INDEX idx_aal_username   (username),
+#     INDEX idx_aal_event_type (event_type),
+#     INDEX idx_aal_created_at (created_at)
+#     );
