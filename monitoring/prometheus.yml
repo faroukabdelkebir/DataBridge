@@ -32,8 +32,8 @@ scrape_configs:
       - targets: ['monitoringms:65010']
         labels: {service: monitoringms}
       # Reactiver quand Oracle sera deploye :
-      # - targets: ['t24extractor:65005']
-      #   labels: {service: t24extractor}
+      - targets: ['t24extractor:65005']
+        labels: {service: t24extractor}
 
   # --- Metriques de l'hote et des conteneurs ---
   - job_name: cadvisor
