@@ -39,9 +39,9 @@ jobs:
             context: Frontend
             maven: false
           # Reactiver quand Oracle sera deploye :
-          # - name: t24extractor
-          #   context: Backend/T24Extractor
-          #   maven: true
+           - name: t24extractor
+             context: Backend/T24Extractor
+             maven: true
 
     steps:
       - uses: actions/checkout@v5
