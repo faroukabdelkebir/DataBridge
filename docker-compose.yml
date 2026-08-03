@@ -336,7 +336,6 @@ services:
     command:
       - '--housekeeping_interval=30s'
       - '--store_container_labels=false'
-      - '--docker_only'
     networks: [databridge]
 
   # ---------------------------------------------------------------
