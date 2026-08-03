@@ -114,7 +114,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml,Gateway/KongGateway/kong.yml"
+          source: "docker-compose.yml,Gateway/KongGateway/kong.yml,monitoring/**"
           target: "~/databridge"
 
       - name: Redeployer
