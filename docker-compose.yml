@@ -128,6 +128,7 @@ services:
       JWK_KEYSTORE_PATH: ${JWK_KEYSTORE_PATH:-}
       JWK_KEYSTORE_PASSWORD: ${JWK_KEYSTORE_PASSWORD:-}
       JWK_KEY_ALIAS: ${JWK_KEY_ALIAS:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     volumes:
       - ./secrets/auth-jwt.p12:/opt/auth/auth-jwt.p12:ro
     depends_on:
@@ -148,6 +149,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       AUTHMS_URL: "http://authms:8090"
       # Validation locale des jetons, issuer public
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: "http://authms:8090/oauth2/jwks"
@@ -199,7 +201,9 @@ services:
       BI_DB: ${BI_DB}
       BI_USER: ${BI_USER}
       BI_PASS: ${BI_PASS}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       AUTHMS_URL: "http://authms:8090"
+      AUTHMS_ISSUER: ${PUBLIC_URL}
     depends_on:
       sqlserver: {condition: service_healthy}
       eureka: {condition: service_started}
@@ -217,6 +221,7 @@ services:
       BI_DB: ${BI_DB}
       BI_USER: ${BI_USER}
       BI_PASS: ${BI_PASS}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     depends_on:
       sqlserver: {condition: service_healthy}
     networks: [databridge]
