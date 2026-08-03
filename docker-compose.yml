@@ -185,25 +185,24 @@ services:
   #  Laisser commente tant qu'Oracle n'est pas deploye,
   #  sinon le conteneur redemarre en boucle.
   # ---------------------------------------------------------------
-   t24extractor:
-     <<: *jvm
-     image: ${REGISTRY}/databridge-t24extractor:${TAG:-latest}
-     mem_limit: 650m
-     environment:
-       <<: *jvm-env
-       ORACLE_URL: ${ORACLE_URL}
-       ORACLE_SERVICE: ${ORACLE_SERVICE}
-       ORACLE_SID: ${ORACLE_SID}
-       ORACLE_USERNAME: ${ORACLE_USERNAME}
-       ORACLE_PASSWORD: ${ORACLE_PASSWORD}
-       BI_URL: "sqlserver:1433"
-       BI_DB: ${BI_DB}
-       BI_USER: ${BI_USER}
-       BI_PASS: ${BI_PASS}
-       AUTHMS_URL: "http://authms:8090"
-     depends_on:
-       sqlserver: {condition: service_healthy}
-       eureka: {condition: service_started}
+  t24extractor:
+    <<: *jvm
+    image: ${REGISTRY}/databridge-t24extractor:${TAG:-latest}
+    mem_limit: 650m
+    environment:
+      <<: *jvm-env
+      ORACLE_URL: ${ORACLE_URL}
+      ORACLE_SERVICE: ${ORACLE_SERVICE}
+      ORACLE_USERNAME: ${ORACLE_USERNAME}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      BI_URL: "sqlserver:1433"
+      BI_DB: ${BI_DB}
+      BI_USER: ${BI_USER}
+      BI_PASS: ${BI_PASS}
+      AUTHMS_URL: "http://authms:8090"
+    depends_on:
+      sqlserver: {condition: service_healthy}
+      eureka: {condition: service_started}
 
   # ---------------------------------------------------------------
   #  Agents IA (Django + gunicorn)
