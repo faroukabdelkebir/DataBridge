@@ -1,0 +1,45 @@
+# =====================================================================
+#  Prometheus - collecte des metriques DataBridge
+#  Monte dans le conteneur en /etc/prometheus/prometheus.yml
+# =====================================================================
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    environment: production
+    project: databridge
+
+scrape_configs:
+
+  # --- Prometheus lui-meme ---
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # --- Microservices Spring Boot ---
+  # Le chemin /actuator/prometheus est expose par Micrometer.
+  # Les noms d'hote sont ceux des services Docker Compose.
+  - job_name: spring-boot
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['eureka:8761']
+        labels: {service: eureka}
+      - targets: ['authms:8090']
+        labels: {service: authms}
+      - targets: ['userms:8085']
+        labels: {service: userms}
+      - targets: ['monitoringms:65010']
+        labels: {service: monitoringms}
+      # Reactiver quand Oracle sera deploye :
+      # - targets: ['t24extractor:65005']
+      #   labels: {service: t24extractor}
+
+  # --- Metriques de l'hote et des conteneurs ---
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['node-exporter:9100']
