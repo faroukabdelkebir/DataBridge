@@ -75,7 +75,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
 
                         // Endpoints internes (hashes de mots de passe) : réservés au
                         // client OAuth2 "auth-service" via ses scopes dédiés.

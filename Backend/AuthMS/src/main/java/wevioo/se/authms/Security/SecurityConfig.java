@@ -157,7 +157,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password"
                         ).permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
 
                         .requestMatchers("/bff/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST,

@@ -44,10 +44,6 @@ eureka:
     instance-id: ${spring.application.name}:${server.port}
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health, info, metrics, loggers
   endpoint:
     health:
       show-details: when-authorized
@@ -69,3 +65,20 @@ logging:
     org.hibernate.SQL: WARN
 #  pattern:
 #    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{40} - %msg%n"
+
+# --- Monitoring Prometheus ---
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,prometheus,metrics
+    endpoint:
+      prometheus:
+        access: read-only
+    metrics:
+      tags:
+        application: ${spring.application.name}
+    prometheus:
+      metrics:
+        export:
+          enabled: true

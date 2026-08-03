@@ -38,8 +38,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-
+                        .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         // Tous les lancements de jobs exigent le scope batch:execute.
                         // Seuls les clients machine autorisés (ex: frontend-bff, après
                         // vérification du rôle ADMIN de l'utilisateur) le possèdent.
