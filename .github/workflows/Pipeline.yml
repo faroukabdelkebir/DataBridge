@@ -27,7 +27,7 @@ jobs:
   #     test et rapports JaCoCo sont produits en une seule passe.
   # ==================================================================
   build-backend:
-    name: Build backend
+    name: build-test-backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -78,32 +78,8 @@ jobs:
   # ==================================================================
   #  2. TESTS - frontend Angular et agents IA Python, en parallele
   # ==================================================================
-  test-frontend:
-    name: Tests frontend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: Frontend/package-lock.json
-
-      - name: Installer et tester
-        working-directory: Frontend
-        run: |
-          npm ci
-          npx ng test --coverage
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: Frontend/coverage/**
-          retention-days: 1
-
   test-agents-ia:
-    name: Tests agents IA
+    name: build-test-agents IA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -124,6 +100,31 @@ jobs:
         with:
           name: python-coverage
           path: Backend/extractor_ai_agents/coverage.xml
+          retention-days: 1
+ 
+  
+  test-frontend:
+    name: build-test-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Installer et tester
+        working-directory: Frontend
+        run: |
+          npm ci
+          npx ng test --coverage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage/**
           retention-days: 1
 
   # ==================================================================
