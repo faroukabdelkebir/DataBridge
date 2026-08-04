@@ -1,0 +1,324 @@
+name: Pipeline DataBridge
+
+# =====================================================================
+#  build -> tests -> SonarCloud -> images Nexus -> deploiement
+#                                               -> verification monitoring
+#
+#  Les jobs tournent sur des runners distincts : les jars compiles
+#  transitent par des artefacts. Maven ne compile qu'une seule fois,
+#  contrairement aux deux workflows separes precedents.
+# =====================================================================
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  JAVA_MODULES: "AuthMS UserMS EurekaServer MonitoringMS T24Extractor"
+
+jobs:
+
+  # ==================================================================
+  #  1. BUILD - compilation et tests unitaires Java
+  #     mvn verify compile ET execute les tests : jars, classes de
+  #     test et rapports JaCoCo sont produits en une seule passe.
+  # ==================================================================
+  build-backend:
+    name: Build backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # requis par Sonar (blame, New Code)
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compiler et tester les modules
+        run: |
+          for module in $JAVA_MODULES; do
+            echo "::group::$module"
+            mvn -B verify dependency:copy-dependencies \
+              -DoutputDirectory=target/dependency \
+              -f "Backend/$module/pom.xml"
+            echo "::endgroup::"
+          done
+
+      - name: Recapitulatif des tests
+        if: always()
+        run: grep -h "Tests run:" Backend/*/target/surefire-reports/*.txt 2>/dev/null | tail -20 || true
+
+      # Les jars servent aux images Docker...
+      - name: Publier les jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: jars
+          path: Backend/*/target/*.jar
+          retention-days: 1
+
+      # ...le reste sert a Sonar.
+      - name: Publier les rapports et classes
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-analyse
+          path: |
+            Backend/*/target/classes/**
+            Backend/*/target/test-classes/**
+            Backend/*/target/site/jacoco/jacoco.xml
+            Backend/*/target/surefire-reports/**
+            Backend/*/target/dependency/*.jar
+          retention-days: 1
+
+  # ==================================================================
+  #  2. TESTS - frontend Angular et agents IA Python, en parallele
+  # ==================================================================
+  test-frontend:
+    name: Tests frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Installer et tester
+        working-directory: Frontend
+        run: |
+          npm ci
+          npx ng test --coverage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage/**
+          retention-days: 1
+
+  test-agents-ia:
+    name: Tests agents IA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: Backend/extractor_ai_agents/requirements-dev.txt
+
+      - name: Installer et tester
+        working-directory: Backend/extractor_ai_agents
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          pytest --cov=. --cov-report=xml --junitxml=test-results.xml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: Backend/extractor_ai_agents/coverage.xml
+          retention-days: 1
+
+  # ==================================================================
+  #  3. QUALITE - SonarCloud analyse les 4 langages du projet :
+  #     Java, TypeScript, Python et les fichiers de configuration.
+  # ==================================================================
+  sonar:
+    name: Analyse SonarCloud
+    needs: [build-backend, test-frontend, test-agents-ia]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Recuperer les artefacts backend
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-analyse
+          path: Backend
+
+      - name: Recuperer la couverture frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage
+
+      - name: Recuperer la couverture Python
+        uses: actions/download-artifact@v4
+        with:
+          name: python-coverage
+          path: Backend/extractor_ai_agents
+
+      - name: Analyse SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ==================================================================
+  #  4. IMAGES - construction et publication vers Nexus
+  #     Uniquement sur main : les pull requests s'arretent apres Sonar.
+  # ==================================================================
+  docker-build:
+    name: Image ${{ matrix.name }}
+    needs: sonar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: eureka,       context: Backend/EurekaServer,        maven: true}
+          - {name: authms,       context: Backend/AuthMS,              maven: true}
+          - {name: userms,       context: Backend/UserMS,              maven: true}
+          - {name: monitoringms, context: Backend/MonitoringMS,        maven: true}
+          - {name: t24extractor, context: Backend/T24Extractor,        maven: true}
+          - {name: ai-agents,    context: Backend/extractor_ai_agents, maven: false}
+          - {name: frontend,     context: Frontend,                    maven: false}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Les jars viennent de build-backend : aucune recompilation.
+      - name: Recuperer les jars
+        if: matrix.maven
+        uses: actions/download-artifact@v4
+        with:
+          name: jars
+          path: Backend
+
+      - name: Verifier la presence du jar
+        if: matrix.maven
+        run: ls -lh "${{ matrix.context }}"/target/*.jar
+
+      # Nexus n'est pas expose sur Internet : tunnel SSH vers son
+      # instance, puis push vers localhost:8082.
+      - name: Ouvrir un tunnel SSH vers Nexus
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.NEXUS_HOST }} >> ~/.ssh/known_hosts
+          ssh -f -N -L 8082:localhost:8082 -i ~/.ssh/id_rsa ubuntu@${{ secrets.NEXUS_HOST }}
+          sleep 3
+
+      - name: Autoriser le registre en HTTP
+        run: |
+          echo '{ "insecure-registries": ["localhost:8082"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          sleep 5
+
+      - name: Authentification au registre
+        run: |
+          echo "${{ secrets.NEXUS_PASSWORD }}" \
+            | docker login localhost:8082 -u ${{ secrets.NEXUS_USER }} --password-stdin
+
+      - name: Construire l'image
+        run: |
+          docker build \
+            -t localhost:8082/databridge-${{ matrix.name }}:${{ github.sha }} \
+            -t localhost:8082/databridge-${{ matrix.name }}:latest \
+            "${{ matrix.context }}"
+
+      - name: Pousser vers Nexus
+        run: |
+          docker push localhost:8082/databridge-${{ matrix.name }}:${{ github.sha }}
+          docker push localhost:8082/databridge-${{ matrix.name }}:latest
+
+  # ==================================================================
+  #  5. DEPLOIEMENT sur l'instance applicative
+  # ==================================================================
+  deploy:
+    name: Deploiement
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Envoyer les fichiers de deploiement
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml,Gateway/KongGateway/kong.yml,monitoring/**"
+          target: "~/databridge"
+
+      - name: Redeployer
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/databridge
+            # scp conserve l'arborescence : on remonte kong.yml a plat
+            cp Gateway/KongGateway/kong.yml ./kong.yml
+            # TAG surcharge la valeur du .env pour ce deploiement
+            sed -i "s|^TAG=.*|TAG=${{ github.sha }}|" .env
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+            sleep 30
+            docker compose ps
+
+      - name: Verifier que l'application repond
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://${{ secrets.EC2_HOST }}/authms/actuator/health || echo 000)
+            echo "tentative $i : $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "AuthMS ne repond pas apres le deploiement"
+          exit 1
+
+  # ==================================================================
+  #  6. MONITORING - Prometheus et Grafana sont deployes par le
+  #     docker-compose (aucune image a construire). Cette etape
+  #     verifie que la collecte fonctionne apres le redeploiement.
+  # ==================================================================
+  verifier-monitoring:
+    name: Verification monitoring
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Controler les cibles Prometheus et Grafana
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/databridge
+
+            echo "--- Cibles Prometheus ---"
+            # Laisser le temps aux services de redemarrer et d'etre scrappes
+            sleep 45
+            resultat=$(docker compose exec -T prometheus \
+              wget -qO- 'http://localhost:9090/api/v1/targets?state=active')
+
+            echo "$resultat" | tr ',' '\n' | grep -E '"(instance|health)"'
+
+            hs=$(echo "$resultat" | grep -o '"health":"up"' | wc -l)
+            total=$(echo "$resultat" | grep -o '"health":"' | wc -l)
+            echo "Cibles actives : $hs / $total"
+
+            echo "--- Grafana ---"
+            docker compose exec -T grafana \
+              wget -qO- http://localhost:3000/api/health || echo "Grafana ne repond pas"
+
+            # Avertissement sans blocage : une cible peut encore demarrer
+            [ "$hs" -lt "$total" ] && echo "::warning::certaines cibles Prometheus sont DOWN"
+            exit 0
