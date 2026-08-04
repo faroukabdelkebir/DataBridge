@@ -222,6 +222,7 @@ services:
       BI_USER: ${BI_USER}
       BI_PASS: ${BI_PASS}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      OAUTH2_ISSUER: ${PUBLIC_URL}
     depends_on:
       sqlserver: {condition: service_healthy}
     networks: [databridge]
