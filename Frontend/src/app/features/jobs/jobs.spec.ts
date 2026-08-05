@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
@@ -6,6 +6,16 @@ import { TranslateService } from '@ngx-translate/core';
 import { Jobs } from './jobs';
 import { MonitoringService } from '../../core/services/monitoring.service';
 import { JobExecution, StepExecution } from '../../core/models/monitoring.model';
+
+/**
+ * Date de référence de la suite.
+ *
+ * Le composant filtre les jobs sur une fenêtre glissante calculée depuis
+ * l'heure courante. Sans horloge figée, les jeux de données ci-dessous
+ * sortent de la fenêtre au fil du temps et les tests finissent par échouer
+ * sans qu'une seule ligne de code n'ait changé.
+ */
+const MAINTENANT = new Date('2026-07-28T12:00:00Z');
 
 /** Fabrique un JobExecution minimal, surchargeable. */
 function job(overrides: Partial<JobExecution> = {}): JobExecution {
@@ -51,6 +61,11 @@ describe('Jobs (composant)', () => {
   }
 
   beforeEach(() => {
+    // Horloge figée pour toute la suite : les horodatages des jeux de
+    // données restent dans la fenêtre quel que soit le jour d'exécution.
+    vi.useFakeTimers();
+    vi.setSystemTime(MAINTENANT);
+
     monitoring = {
       getRecentJobs: vi.fn().mockReturnValue(of([])),
       getJobSteps: vi.fn().mockReturnValue(of([])),
@@ -63,19 +78,21 @@ describe('Jobs (composant)', () => {
     };
   });
 
+  afterEach(() => {
+    // Restaure l'horloge et les espions : sans cela, les mocks posés par
+    // exportCsv sur document.createElement fuiraient vers les autres suites.
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   describe('chargement et fenêtre de jours', () => {
     it('ne conserve que les jobs dans la fenêtre choisie', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-07-28T12:00:00Z'));
-
       const recent = job({ jobExecutionId: 1, startTime: '2026-07-27T12:00:00Z' }); // dans 7 j
       const old = job({ jobExecutionId: 2, startTime: '2026-07-01T12:00:00Z' });     // hors 7 j
       const comp = createComponent([recent, old]);
 
       expect(comp.loading()).toBe(false);
       expect(comp.jobs().map((j) => j.jobExecutionId)).toEqual([1]);
-
-      vi.useRealTimers();
     });
 
     it('ignore les jobs sans startTime', () => {
@@ -224,15 +241,20 @@ describe('Jobs (composant)', () => {
         }),
       ]);
 
+      // Le job doit avoir survécu au filtre de fenêtre, sinon le CSV
+      // ne contiendrait que l'en-tête.
+      expect(comp.jobs()).toHaveLength(1);
+
       // Capture le contenu texte passé au constructeur Blob.
       let csvContent = '';
       const RealBlob = globalThis.Blob;
-      const blobSpy = vi
-        .spyOn(globalThis, 'Blob')
-        .mockImplementation(function (parts: BlobPart[] = [], opts?: BlobPropertyBag) {
-          csvContent = (parts as string[]).join('');
-          return new RealBlob(parts, opts);
-        } as unknown as typeof Blob);
+      vi.spyOn(globalThis, 'Blob').mockImplementation(function (
+        parts: BlobPart[] = [],
+        opts?: BlobPropertyBag,
+      ) {
+        csvContent = (parts as string[]).join('');
+        return new RealBlob(parts, opts);
+      } as unknown as typeof Blob);
 
       const clickSpy = vi.fn();
       const anchor = document.createElement('a');
@@ -244,14 +266,10 @@ describe('Jobs (composant)', () => {
       expect(clickSpy).toHaveBeenCalledTimes(1);
       expect(anchor.download).toMatch(/^historique-jobs-\d{4}-\d{2}-\d{2}\.csv$/);
 
-      const lines = csvContent.replace(/^﻿/, '').split('\r\n');
+      const lines = csvContent.replace(/^\ufeff/, '').split('\r\n');
       expect(lines[0]).toBe('Job,Statut,Début,Durée (s),Lues,Écrites,Ignorées');
       // Le nom contient une virgule et des guillemets → doit être entouré de "" et échappé.
-      expect(lines[1]).toBe(
-        '"JOB, WITH ""COMMA""",COMPLETED,2026-07-28T10:00:00,5,100,90,2',
-      );
-
-      blobSpy.mockRestore();
+      expect(lines[1]).toBe('"JOB, WITH ""COMMA""",COMPLETED,2026-07-28T10:00:00,5,100,90,2');
     });
   });
 });
