@@ -1,12 +1,13 @@
 name: Pipeline DataBridge
 
 # =====================================================================
-#  build -> tests -> SonarCloud -> images Nexus -> deploiement
-#                                               -> verification monitoring
+#  build -> tests -> SonarCloud -> artefacts Nexus
+#                               -> images ghcr.io
+#                               -> deploiement -> verification monitoring
 #
-#  Les jobs tournent sur des runners distincts : les jars compiles
-#  transitent par des artefacts. Maven ne compile qu'une seule fois,
-#  contrairement aux deux workflows separes precedents.
+#  Repartition des registres :
+#    - ghcr.io : images Docker (prive et gratuit, pas de tunnel SSH)
+#    - Nexus   : jars Maven en SNAPSHOT (maven-snapshots)
 # =====================================================================
 
 on:
@@ -18,16 +19,15 @@ on:
 
 env:
   JAVA_MODULES: "AuthMS UserMS EurekaServer MonitoringMS T24Extractor"
+  REGISTRY: ghcr.io
 
 jobs:
 
   # ==================================================================
   #  1. BUILD - compilation et tests unitaires Java
-  #     mvn verify compile ET execute les tests : jars, classes de
-  #     test et rapports JaCoCo sont produits en une seule passe.
   # ==================================================================
   build-backend:
-    name: Build backend
+    name: build-test-backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -54,7 +54,6 @@ jobs:
         if: always()
         run: grep -h "Tests run:" Backend/*/target/surefire-reports/*.txt 2>/dev/null | tail -20 || true
 
-      # Les jars servent aux images Docker...
       - name: Publier les jars
         uses: actions/upload-artifact@v4
         with:
@@ -62,7 +61,6 @@ jobs:
           path: Backend/*/target/*.jar
           retention-days: 1
 
-      # ...le reste sert a Sonar.
       - name: Publier les rapports et classes
         uses: actions/upload-artifact@v4
         with:
@@ -76,34 +74,10 @@ jobs:
           retention-days: 1
 
   # ==================================================================
-  #  2. TESTS - frontend Angular et agents IA Python, en parallele
+  #  2. TESTS - agents IA Python et frontend Angular, en parallele
   # ==================================================================
-  test-frontend:
-    name: Tests frontend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: Frontend/package-lock.json
-
-      - name: Installer et tester
-        working-directory: Frontend
-        run: |
-          npm ci
-          npx ng test --coverage
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: Frontend/coverage/**
-          retention-days: 1
-
   test-agents-ia:
-    name: Tests agents IA
+    name: build-test-agents IA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -126,9 +100,32 @@ jobs:
           path: Backend/extractor_ai_agents/coverage.xml
           retention-days: 1
 
+  test-frontend:
+    name: build-test-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Installer et tester
+        working-directory: Frontend
+        run: |
+          npm ci
+          npx ng test --coverage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage/**
+          retention-days: 1
+
   # ==================================================================
-  #  3. QUALITE - SonarCloud analyse les 4 langages du projet :
-  #     Java, TypeScript, Python et les fichiers de configuration.
+  #  3. QUALITE - SonarCloud analyse Java, TypeScript et Python
   # ==================================================================
   sonar:
     name: Analyse SonarCloud
@@ -163,14 +160,83 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ==================================================================
-  #  4. IMAGES - construction et publication vers Nexus
-  #     Uniquement sur main : les pull requests s'arretent apres Sonar.
+  #  4. ARTEFACTS - publication des jars SNAPSHOT dans Nexus
+  #
+  #  Nexus n'est pas expose sur Internet : un tunnel SSH redirige
+  #  le port 8081 vers le runner. Les pom.xml doivent declarer
+  #  <distributionManagement> avec l'URL http://localhost:8081/...
+  # ==================================================================
+  publier-artefacts:
+    name: Artefacts Nexus
+    needs: sonar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Ouvrir un tunnel SSH vers Nexus
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.NEXUS_HOST }} >> ~/.ssh/known_hosts
+          ssh -f -N -L 8081:localhost:8081 -i ~/.ssh/id_rsa ubuntu@${{ secrets.NEXUS_HOST }}
+          sleep 3
+          curl -s -o /dev/null -w "Nexus repond : %{http_code}\n" http://localhost:8081/
+
+      # Maven lit les identifiants depuis settings.xml, jamais depuis
+      # le pom : les secrets ne sont donc pas versionnes.
+      - name: Configurer les identifiants Maven
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml <<'FIN'
+          <settings>
+            <servers>
+              <server>
+                <id>nexus-snapshots</id>
+                <username>NEXUS_USER_PLACEHOLDER</username>
+                <password>NEXUS_PASS_PLACEHOLDER</password>
+              </server>
+              <server>
+                <id>nexus-releases</id>
+                <username>NEXUS_USER_PLACEHOLDER</username>
+                <password>NEXUS_PASS_PLACEHOLDER</password>
+              </server>
+            </servers>
+          </settings>
+          FIN
+          sed -i "s|NEXUS_USER_PLACEHOLDER|${{ secrets.NEXUS_USER }}|g" ~/.m2/settings.xml
+          sed -i "s|NEXUS_PASS_PLACEHOLDER|${{ secrets.NEXUS_PASSWORD }}|g" ~/.m2/settings.xml
+
+      # -DskipTests : les tests ont deja tourne dans build-backend.
+      - name: Deployer les jars SNAPSHOT
+        run: |
+          for module in $JAVA_MODULES; do
+            echo "::group::deploy $module"
+            mvn -B deploy -DskipTests -f "Backend/$module/pom.xml"
+            echo "::endgroup::"
+          done
+
+  # ==================================================================
+  #  5. IMAGES - construction et publication vers ghcr.io
+  #
+  #  GITHUB_TOKEN suffit a s'authentifier : aucun secret a gerer.
+  #  Les images sont privees par defaut, comme le depot.
   # ==================================================================
   docker-build:
     name: Image ${{ matrix.name }}
     needs: sonar
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # requis pour pousser vers ghcr.io
     strategy:
       fail-fast: false
       matrix:
@@ -186,7 +252,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Les jars viennent de build-backend : aucune recompilation.
       - name: Recuperer les jars
         if: matrix.maven
         uses: actions/download-artifact@v4
@@ -198,46 +263,35 @@ jobs:
         if: matrix.maven
         run: ls -lh "${{ matrix.context }}"/target/*.jar
 
-      # Nexus n'est pas expose sur Internet : tunnel SSH vers son
-      # instance, puis push vers localhost:8082.
-      - name: Ouvrir un tunnel SSH vers Nexus
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.NEXUS_HOST }} >> ~/.ssh/known_hosts
-          ssh -f -N -L 8082:localhost:8082 -i ~/.ssh/id_rsa ubuntu@${{ secrets.NEXUS_HOST }}
-          sleep 3
+      - name: Authentification a ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Autoriser le registre en HTTP
-        run: |
-          echo '{ "insecure-registries": ["localhost:8082"] }' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
-          sleep 5
+      # Le nom du proprietaire doit etre en minuscules pour ghcr.io.
+      - name: Determiner le prefixe des images
+        id: prefixe
+        run: echo "valeur=${REGISTRY}/$(echo '${{ github.repository_owner }}' | tr 'A-Z' 'a-z')" >> $GITHUB_OUTPUT
 
-      - name: Authentification au registre
-        run: |
-          echo "${{ secrets.NEXUS_PASSWORD }}" \
-            | docker login localhost:8082 -u ${{ secrets.NEXUS_USER }} --password-stdin
-
-      - name: Construire l'image
-        run: |
-          docker build \
-            -t localhost:8082/databridge-${{ matrix.name }}:${{ github.sha }} \
-            -t localhost:8082/databridge-${{ matrix.name }}:latest \
-            "${{ matrix.context }}"
-
-      - name: Pousser vers Nexus
-        run: |
-          docker push localhost:8082/databridge-${{ matrix.name }}:${{ github.sha }}
-          docker push localhost:8082/databridge-${{ matrix.name }}:latest
+      - name: Construire et pousser
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ steps.prefixe.outputs.valeur }}/databridge-${{ matrix.name }}:${{ github.sha }}
+            ${{ steps.prefixe.outputs.valeur }}/databridge-${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   # ==================================================================
-  #  5. DEPLOIEMENT sur l'instance applicative
+  #  6. DEPLOIEMENT sur l'instance applicative
   # ==================================================================
   deploy:
     name: Deploiement
-    needs: docker-build
+    needs: [docker-build, publier-artefacts]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -258,6 +312,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          # GHCR_TOKEN : jeton personnel GitHub avec le scope read:packages
+          envs: GHCR_USER,GHCR_TOKEN
           script: |
             set -e
             cd ~/databridge
@@ -265,11 +321,15 @@ jobs:
             cp Gateway/KongGateway/kong.yml ./kong.yml
             # TAG surcharge la valeur du .env pour ce deploiement
             sed -i "s|^TAG=.*|TAG=${{ github.sha }}|" .env
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
             sleep 30
             docker compose ps
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
       - name: Verifier que l'application repond
         run: |
@@ -284,9 +344,7 @@ jobs:
           exit 1
 
   # ==================================================================
-  #  6. MONITORING - Prometheus et Grafana sont deployes par le
-  #     docker-compose (aucune image a construire). Cette etape
-  #     verifie que la collecte fonctionne apres le redeploiement.
+  #  7. MONITORING - verification de la collecte apres redeploiement
   # ==================================================================
   verifier-monitoring:
     name: Verification monitoring
@@ -304,7 +362,6 @@ jobs:
             cd ~/databridge
 
             echo "--- Cibles Prometheus ---"
-            # Laisser le temps aux services de redemarrer et d'etre scrappes
             sleep 45
             resultat=$(docker compose exec -T prometheus \
               wget -qO- 'http://localhost:9090/api/v1/targets?state=active')
@@ -319,6 +376,5 @@ jobs:
             docker compose exec -T grafana \
               wget -qO- http://localhost:3000/api/health || echo "Grafana ne repond pas"
 
-            # Avertissement sans blocage : une cible peut encore demarrer
             [ "$hs" -lt "$total" ] && echo "::warning::certaines cibles Prometheus sont DOWN"
             exit 0
