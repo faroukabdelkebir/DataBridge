@@ -125,29 +125,6 @@ jobs:
           path: Frontend/coverage/**
           retention-days: 1
 
-  test-frontend:
-    name: build-test-frontend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: Frontend/package-lock.json
-
-      - name: Installer et tester
-        working-directory: Frontend
-        run: |
-          npm ci
-          npx ng test --coverage
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: Frontend/coverage/**
-          retention-days: 1
 
   # ==================================================================
   #  3. QUALITE - SonarCloud analyse Java, TypeScript et Python
