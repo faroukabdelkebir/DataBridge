@@ -14,7 +14,7 @@
 
   <groupId>com.banquezitouna.t24_Extractor</groupId>
   <artifactId>LP-T24Extractor</artifactId>
-  <version>1.0</version>
+  <version>1.0-SNAPSHOT</version>
   <name>LP-T24Extractor</name>
   <description>Local Partitioning T24 Extractor</description>
 

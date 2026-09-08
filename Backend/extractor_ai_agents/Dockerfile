@@ -9,7 +9,11 @@ ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 
-RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries \
+
+RUN sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g; \
+            s|security.debian.org/debian-security|archive.debian.org/debian-security|g; \
+            /bullseye-updates/d' /etc/apt/sources.list \
+    && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check \
     && apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         unixodbc-dev \
@@ -35,7 +39,10 @@ FROM python:3.12-slim-bullseye
 # par Microsoft pour Debian 12 (bookworm).
 
 
-RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries \
+RUN sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g; \
+            s|security.debian.org/debian-security|archive.debian.org/debian-security|g; \
+            /bullseye-updates/d' /etc/apt/sources.list \
+    && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check \
     && apt-get update && apt-get install -y --no-install-recommends \
         curl gnupg apt-transport-https ca-certificates \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
