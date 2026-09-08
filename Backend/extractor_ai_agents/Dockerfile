@@ -5,6 +5,11 @@
 # --------------------------------------------
 FROM python:3.12-slim-bookworm AS builder
 
+RUN cat /etc/apt/sources.list 2>/dev/null; \
+    ls -la /etc/apt/sources.list.d/ 2>/dev/null; \
+    cat /etc/apt/sources.list.d/*.sources 2>/dev/null; \
+    apt-get update 2>&1 | tail -30
+
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
