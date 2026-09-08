@@ -3,12 +3,14 @@
 # Étape 1 — Build des dépendances Python
 # (pyodbc doit être compilé : gcc + unixodbc-dev)
 # --------------------------------------------
-FROM python:3.12-slim-bullseye AS builder
+FROM python:3.12-slim-bullseye AS Builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries \
+    && apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -31,7 +33,10 @@ FROM python:3.12-slim-bullseye
 # littéralement "DRIVER={ODBC Driver 17 for SQL Server}" (voir core/optimizations.py).
 # C'est la raison du choix de la base bullseye : msodbcsql17 n'est pas publié
 # par Microsoft pour Debian 12 (bookworm).
-RUN apt-get update && apt-get install -y --no-install-recommends \
+
+
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries \
+    && apt-get update && apt-get install -y --no-install-recommends \
         curl gnupg apt-transport-https ca-certificates \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
