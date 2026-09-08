@@ -3,18 +3,14 @@
 # Étape 1 — Build des dépendances Python
 # (pyodbc doit être compilé : gcc + unixodbc-dev)
 # --------------------------------------------
-FROM python:3.12-slim-bullseye AS Builder
+FROM python:3.12-slim-bookworm AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 
 
-RUN sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g; \
-            s|security.debian.org/debian-security|archive.debian.org/debian-security|g; \
-            /bullseye-updates/d' /etc/apt/sources.list \
-    && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check \
-    && apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -31,26 +27,18 @@ RUN pip install --upgrade pip \
 # --------------------------------------------
 # Étape 2 — Image finale
 # --------------------------------------------
-FROM python:3.12-slim-bullseye
+FROM python:3.12-slim-bookworm
 
-# Pilote ODBC 17 pour SQL Server : les chaînes de connexion du code utilisent
-# littéralement "DRIVER={ODBC Driver 17 for SQL Server}" (voir core/optimizations.py).
-# C'est la raison du choix de la base bullseye : msodbcsql17 n'est pas publié
-# par Microsoft pour Debian 12 (bookworm).
-
-
-RUN sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g; \
-            s|security.debian.org/debian-security|archive.debian.org/debian-security|g; \
-            /bullseye-updates/d' /etc/apt/sources.list \
-    && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check \
-    && apt-get update && apt-get install -y --no-install-recommends \
+# Pilote ODBC 18 : publie par Microsoft pour Debian 12, contrairement
+# au 17 qui n'existe que jusqu'a bullseye (fin de vie).
+RUN apt-get update && apt-get install -y --no-install-recommends \
         curl gnupg apt-transport-https ca-certificates \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/11/prod bullseye main" \
+    && echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
         > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 unixodbc \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 unixodbc \
     && apt-get purge -y --auto-remove gnupg apt-transport-https \
     && rm -rf /var/lib/apt/lists/*
 

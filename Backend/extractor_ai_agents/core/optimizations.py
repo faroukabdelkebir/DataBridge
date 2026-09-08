@@ -12,6 +12,7 @@ Intégrer dans base_agent.py :
 """
 
 import json
+import os
 import re
 import hashlib
 import time
@@ -163,7 +164,8 @@ class FallbackScorer:
         from django.conf import settings
 
         conn = pyodbc.connect(
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+            f"DRIVER={{{os.getenv('ODBC_DRIVER', 'ODBC Driver 18 for SQL Server')}}};"
+            f"TrustServerCertificate=yes;"
             f"SERVER={settings.BI_HOST},{settings.BI_PORT};DATABASE={settings.BI_DB};"
             f"UID={settings.BI_USER};PWD={settings.BI_PASS};"
         )
