@@ -277,6 +277,9 @@ jobs:
         id: prefixe
         run: echo "valeur=${REGISTRY}/$(echo '${{ github.repository_owner }}' | tr 'A-Z' 'a-z')" >> $GITHUB_OUTPUT
 
+      - name: Preparer Buildx
+        uses: docker/setup-buildx-action@v3
+        
       - name: Construire et pousser
         uses: docker/build-push-action@v6
         with:
